@@ -1,13 +1,13 @@
-import { createServiceClient } from '@/lib/supabase/server'
-import { getDemoUser } from '@/lib/demo-auth'
+import { requireUser } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { CalendarDays, AlertTriangle, Users, BarChart3 } from 'lucide-react'
 
 export default async function DashboardPage() {
-  const profile = await getDemoUser()
-  if (!profile?.facility_id) return null
+  const profile = await requireUser()
+  if (!profile.facility_id) return null
 
-  const supabase = createServiceClient()
+  const supabase = createClient()
   const facilityId = profile.facility_id
 
   const [

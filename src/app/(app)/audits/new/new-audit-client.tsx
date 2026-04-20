@@ -12,6 +12,7 @@ import {
   Eye, Activity, Heart, Send, Shield, Smile, Sparkles, ChevronRight, ChevronLeft, Bot,
 } from 'lucide-react'
 import type { AuditType, UserProfile, CriterionResult, AuditCriterion } from '@/types'
+import { submitAudit } from './actions'
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   scanning: <Eye className="w-8 h-8" />,
@@ -191,7 +192,6 @@ export function NewAuditClient({
     setSubmitting(true)
     const { score, passed } = computeScore()
 
-    // Save criteria results
     const resultsToInsert = criteriaStates.map((s) => ({
       audit_id: auditId,
       criterion_id: s.criterion.id,
@@ -200,23 +200,15 @@ export function NewAuditClient({
       comment: s.comment || null,
     }))
 
-    await supabase.from('audit_criteria_results').insert(resultsToInsert)
+    const { error } = await submitAudit(
+      auditId, score, passed, resultsToInsert, facilityId, selectedLifeguard?.id ?? '',
+    )
 
-    // Update audit status
-    await supabase
-      .from('audits')
-      .update({ status: 'completed', score, passed, submitted_at: new Date().toISOString() })
-      .eq('id', auditId)
-
-    // Log action
-    await supabase.from('audit_log').insert({
-      facility_id: facilityId,
-      user_id: supervisorId,
-      action: 'audit_submitted',
-      entity_type: 'audit',
-      entity_id: auditId,
-      metadata: { score, passed, lifeguard_id: selectedLifeguard?.id },
-    })
+    if (error) {
+      toast.error(error)
+      setSubmitting(false)
+      return
+    }
 
     toast.success('Audit submitted successfully')
     router.push(`/audits/result/${auditId}`)

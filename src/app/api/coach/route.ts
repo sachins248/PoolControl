@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import type { CoachPCRequest } from '@/types'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -23,6 +24,10 @@ const AUDIT_TYPE_CONTEXT: Record<string, string> = {
 }
 
 export async function POST(req: NextRequest) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return new Response('Unauthorized', { status: 401 })
+
   const body: CoachPCRequest = await req.json()
   const { criterion, audit_type, cert_body, current_results, lifeguard_name, zone } = body
 

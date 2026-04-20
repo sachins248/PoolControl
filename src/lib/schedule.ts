@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import type { ScheduleRow, ScheduleCell, DailySchedule, CellStatus, Priority, AuditTypeName } from '@/types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 const AUDIT_TYPES: AuditTypeName[] = ['scanning', 'vat', 'cpr_skills', 'dispatch']
 const AUDIT_DISPLAY: Record<AuditTypeName, string> = {
@@ -26,12 +27,18 @@ function getPriority(overdueCount: number, recentFails: number): Priority {
   return 'ON TRACK'
 }
 
-export async function getDailySchedule(facilityId: string): Promise<DailySchedule> {
-  const supabase = createServiceClient()
+/**
+ * Pass the session-scoped supabase client from the calling server component
+ * so RLS applies correctly. Falls back to service client if not provided.
+ */
+export async function getDailySchedule(
+  facilityId: string,
+  supabaseClient?: SupabaseClient
+): Promise<DailySchedule> {
+  const supabase = supabaseClient ?? createServiceClient()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Get facility config
   const { data: facility, error: facilityError } = await supabase
     .from('facilities')
     .select('*')
@@ -39,13 +46,14 @@ export async function getDailySchedule(facilityId: string): Promise<DailySchedul
     .single()
 
   if (!facility) {
-    // Fallback for demo mode if service client can't reach DB
     console.error('Facility query failed:', facilityError)
     return {
       facility: {
         id: facilityId,
-        name: 'Coral Bay Aquatic Center',
-        cert_body: 'ellis',
+        name: 'Aquatic Center',
+        cert_body: 'ellis' as const,
+        timezone: 'UTC',
+        created_at: new Date().toISOString(),
         config: {
           remediation_deadline_hours: 48,
           audit_cadence: { scanning: 7, vat: 30, cpr_skills: 30, dispatch: 30, supervisor_eavs: 30, guest_service: 14, cleaning: 7 },
@@ -59,7 +67,6 @@ export async function getDailySchedule(facilityId: string): Promise<DailySchedul
 
   const cadence = facility.config.audit_cadence as Record<AuditTypeName, number>
 
-  // Get all lifeguards at facility
   const { data: lifeguards } = await supabase
     .from('user_profiles')
     .select('*')
@@ -68,21 +75,11 @@ export async function getDailySchedule(facilityId: string): Promise<DailySchedul
     .order('name')
 
   if (!lifeguards || lifeguards.length === 0) {
-    return {
-      facility,
-      date: new Date().toISOString(),
-      on_shift: 0,
-      due_today: 0,
-      overdue: 0,
-      done: 0,
-      total: 0,
-      rows: [],
-    }
+    return { facility, date: new Date().toISOString(), on_shift: 0, due_today: 0, overdue: 0, done: 0, total: 0, rows: [] }
   }
 
   const lifeguardIds = lifeguards.map((l) => l.id)
 
-  // Get all audits for these lifeguards (submitted only)
   const { data: audits } = await supabase
     .from('audits')
     .select('id, lifeguard_id, audit_type_name, score, passed, submitted_at, zone')
@@ -92,7 +89,6 @@ export async function getDailySchedule(facilityId: string): Promise<DailySchedul
     .not('submitted_at', 'is', null)
     .order('submitted_at', { ascending: false })
 
-  // Index: lifeguard_id → audit_type_name → most recent audit
   const latestAudit: Record<string, Record<string, { id: string; submitted_at: string; passed: boolean | null }>> = {}
   for (const audit of audits ?? []) {
     if (!latestAudit[audit.lifeguard_id]) latestAudit[audit.lifeguard_id] = {}
@@ -105,7 +101,6 @@ export async function getDailySchedule(facilityId: string): Promise<DailySchedul
     }
   }
 
-  // Build rows
   let dueCount = 0
   let overdueCount = 0
   let doneCount = 0
@@ -127,16 +122,13 @@ export async function getDailySchedule(facilityId: string): Promise<DailySchedul
         completedToday = submittedDate >= today
         if (completedToday) {
           completedTime = submittedDate.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
+            hour: 'numeric', minute: '2-digit', hour12: true,
           }).toLowerCase()
         }
         if (!latest.passed) guardFails++
       }
 
       const status = getCellStatus(daysAgo, cadence[auditType] ?? 30, completedToday)
-
       if (status === 'overdue') { guardOverdue++; overdueCount++ }
       else if (status === 'due_today') dueCount++
       else if (status === 'done') doneCount++
@@ -158,7 +150,6 @@ export async function getDailySchedule(facilityId: string): Promise<DailySchedul
     }
   })
 
-  // Sort: HIGH first, then by overdue count desc
   rows.sort((a, b) => {
     const order = { HIGH: 0, MED: 1, 'ON TRACK': 2 }
     if (order[a.priority] !== order[b.priority]) return order[a.priority] - order[b.priority]

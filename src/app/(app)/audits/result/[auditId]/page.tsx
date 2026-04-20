@@ -1,12 +1,15 @@
 import { notFound } from 'next/navigation'
-import { createServiceClient } from '@/lib/supabase/server'
-import { getDemoUser } from '@/lib/demo-auth'
+import { requireUser } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 import { AuditResultClient } from './audit-result-client'
 
 export default async function AuditResultPage({ params }: { params: { auditId: string } }) {
-  const supabase = createServiceClient()
-  const profile = await getDemoUser()
+  const profile = await requireUser()
+  const supabase = createClient()
 
+  // RLS on audits ensures users only see audits they're allowed to see:
+  // lifeguards see own, supervisors/directors see their facility
   const { data: audit } = await supabase
     .from('audits')
     .select(`*, audit_criteria_results(*)`)
@@ -56,9 +59,11 @@ export default async function AuditResultPage({ params }: { params: { auditId: s
 
   if (failedCriteria.length > 0 && auditType) {
     try {
+      // Pass session cookies so the API auth check succeeds (server-to-server call)
+      const cookieHeader = cookies().getAll().map((c) => `${c.name}=${c.value}`).join('; ')
       const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/coach/coaching-points`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
         body: JSON.stringify({
           failed_criteria: failedCriteria,
           audit_type: audit.audit_type_name,
@@ -83,7 +88,7 @@ export default async function AuditResultPage({ params }: { params: { auditId: s
       remediationTask={remediationTask}
       hotSeatQueue={hotSeatQueue ?? []}
       coachingPoints={coachingPoints}
-      supervisorId={profile?.id ?? ''}
+      supervisorId={profile.id}
     />
   )
 }

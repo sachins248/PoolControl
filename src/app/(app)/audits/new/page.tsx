@@ -1,5 +1,5 @@
-import { createServiceClient } from '@/lib/supabase/server'
-import { getDemoUser } from '@/lib/demo-auth'
+import { requireUser } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
 import { NewAuditClient } from './new-audit-client'
 import type { AuditType, UserProfile } from '@/types'
 
@@ -8,10 +8,15 @@ export default async function NewAuditPage({
 }: {
   searchParams: { lifeguardId?: string; auditType?: string }
 }) {
-  const profile = await getDemoUser()
-  if (!profile?.facility_id) return null
+  const profile = await requireUser()
+  if (!profile.facility_id) return null
+  // Only supervisors and directors can conduct audits
+  if (profile.role === 'lifeguard') {
+    const { redirect } = await import('next/navigation')
+    redirect('/my-profile')
+  }
 
-  const supabase = createServiceClient()
+  const supabase = createClient()
 
   const { data: facility } = await supabase
     .from('facilities')

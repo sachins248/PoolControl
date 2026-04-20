@@ -1,13 +1,13 @@
-import { createServiceClient } from '@/lib/supabase/server'
-import { getDemoUser } from '@/lib/demo-auth'
+import { requireUser } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/sidebar'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const profile = await getDemoUser()
+  const profile = await requireUser()
 
   let facilityName = 'Aquatics Command Center'
-  if (profile?.facility_id) {
-    const supabase = createServiceClient()
+  if (profile.facility_id) {
+    const supabase = createClient()
     const { data: facility } = await supabase
       .from('facilities')
       .select('name')
@@ -18,7 +18,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar facilityName={facilityName} />
+      <Sidebar
+        facilityName={facilityName}
+        userRole={profile.role}
+        userName={profile.name}
+      />
       <main className="flex-1 min-w-0 overflow-auto">
         {children}
       </main>

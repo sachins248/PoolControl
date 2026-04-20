@@ -11,52 +11,43 @@ import {
   AlertTriangle,
   Settings,
   LogOut,
+  User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import type { UserRole } from '@/types'
 
 interface NavItem {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
   accent?: boolean
+  roles: UserRole[]
 }
 
-interface NavSection {
-  label: string | null
-  items: NavItem[]
-}
+const ALL_NAV_ITEMS: NavItem[] = [
+  // Corporate / multi-facility overview
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['corporate'] },
 
-const NAV_SECTIONS: NavSection[] = [
-  {
-    label: 'MAIN',
-    items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: 'LIFEGUARDS',
-    items: [
-      { href: '/roster', label: 'Roster', icon: Users },
-      { href: '/team', label: 'Team Analysis', icon: BarChart3 },
-      { href: '/schedule', label: 'Daily Schedule', icon: CalendarDays },
-    ],
-  },
-  {
-    label: null,
-    items: [
-      { href: '/audits/new', label: 'New Audit', icon: Plus, accent: true },
-      { href: '/remediation', label: 'Remediation', icon: AlertTriangle },
-    ],
-  },
+  // Supervisor + Director
+  { href: '/schedule', label: 'Daily Schedule', icon: CalendarDays, roles: ['supervisor', 'director'] },
+  { href: '/roster', label: 'Roster', icon: Users, roles: ['supervisor', 'director'] },
+  { href: '/audits/new', label: 'New Audit', icon: Plus, accent: true, roles: ['supervisor', 'director'] },
+  { href: '/remediation', label: 'Remediation', icon: AlertTriangle, roles: ['supervisor', 'director'] },
+  { href: '/team', label: 'Team Analysis', icon: BarChart3, roles: ['supervisor', 'director'] },
+
+  // Lifeguard self-service
+  { href: '/my-profile', label: 'My Profile', icon: User, roles: ['lifeguard'] },
 ]
 
 interface SidebarProps {
   facilityName?: string
+  userRole: UserRole
+  userName?: string
 }
 
-export function Sidebar({ facilityName = 'Aquatics Command Center' }: SidebarProps) {
+export function Sidebar({ facilityName = 'Aquatics Command Center', userRole, userName }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -72,6 +63,8 @@ export function Sidebar({ facilityName = 'Aquatics Command Center' }: SidebarPro
     router.push('/auth/login')
   }
 
+  const visibleItems = ALL_NAV_ITEMS.filter((item) => item.roles.includes(userRole))
+
   return (
     <aside className="flex flex-col w-64 min-h-screen bg-[#0f1e2e] text-white shrink-0">
       {/* Logo */}
@@ -86,55 +79,48 @@ export function Sidebar({ facilityName = 'Aquatics Command Center' }: SidebarPro
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
-        {NAV_SECTIONS.map((section, si) => (
-          <div key={si}>
-            {section.label && (
-              <p className="px-2 mb-1.5 text-[10px] font-semibold tracking-widest text-white/30 uppercase">
-                {section.label}
-              </p>
-            )}
-            <ul className="space-y-0.5">
-              {section.items.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + '/')
-                const Icon = item.icon
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        active
-                          ? 'bg-white/10 text-white'
-                          : 'text-white/60 hover:bg-white/5 hover:text-white/90',
-                        item.accent && !active && 'text-emerald-400 hover:text-emerald-300'
-                      )}
-                    >
-                      <Icon className="w-4 h-4 shrink-0" />
-                      {item.label}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        <ul className="space-y-0.5">
+          {visibleItems.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(item.href + '/')
+            const Icon = item.icon
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    active
+                      ? 'bg-white/10 text-white'
+                      : 'text-white/60 hover:bg-white/5 hover:text-white/90',
+                    item.accent && !active && 'text-emerald-400 hover:text-emerald-300'
+                  )}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {item.label}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
       </nav>
 
       {/* Footer */}
       <div className="border-t border-white/10 px-3 py-3 space-y-0.5">
-        <Link
-          href="/settings"
-          className={cn(
-            'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-            pathname === '/settings'
-              ? 'bg-white/10 text-white'
-              : 'text-white/60 hover:bg-white/5 hover:text-white/90'
-          )}
-        >
-          <Settings className="w-4 h-4" />
-          Settings
-        </Link>
+        {userRole === 'director' && (
+          <Link
+            href="/settings"
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+              pathname === '/settings'
+                ? 'bg-white/10 text-white'
+                : 'text-white/60 hover:bg-white/5 hover:text-white/90'
+            )}
+          >
+            <Settings className="w-4 h-4" />
+            Settings
+          </Link>
+        )}
         <button
           onClick={handleSignOut}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors"
@@ -143,7 +129,8 @@ export function Sidebar({ facilityName = 'Aquatics Command Center' }: SidebarPro
           Sign out
         </button>
         <div className="px-3 pt-2">
-          <p className="text-[10px] text-white/30 uppercase tracking-widest">TODAY</p>
+          {userName && <p className="text-xs text-white/70 font-medium truncate">{userName}</p>}
+          <p className="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">TODAY</p>
           <p className="text-xs text-white/50 mt-0.5">{today}</p>
         </div>
       </div>

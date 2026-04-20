@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
 import { LifeguardAvatar } from '@/components/shared/lifeguard-avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { CheckCircle, XCircle, Clock, Star, ChevronRight } from 'lucide-react'
+import { assignRemediationTask } from './actions'
 
 interface AuditResultClientProps {
   audit: any
@@ -45,8 +45,6 @@ export function AuditResultClient({
   audit, lifeguard, auditType, facility, deadlineHours,
   remediationTask, hotSeatQueue, coachingPoints, supervisorId,
 }: AuditResultClientProps) {
-  const supabase = createClient()
-
   const [editablePoints, setEditablePoints] = useState(
     coachingPoints.map((p) => ({ ...p, editing: false }))
   )
@@ -71,28 +69,20 @@ export function AuditResultClient({
     if (remTask) return // already assigned
     setAssigning(true)
 
-    const deadlineDate = new Date(Date.now() + deadlineHours * 60 * 60 * 1000).toISOString()
     const coachingNotes = editablePoints.map((p) => `${p.title}: ${p.description}`).join('\n\n')
 
-    const { data, error } = await supabase
-      .from('remediation_tasks')
-      .insert({
-        audit_id: audit.id,
-        facility_id: audit.facility_id,
-        lifeguard_id: audit.lifeguard_id,
-        assigned_by_id: supervisorId,
-        deadline: deadlineDate,
-        coaching_notes: coachingNotes,
-      })
-      .select('*')
-      .single()
+    const { data, error } = await assignRemediationTask(
+      audit.id,
+      audit.facility_id,
+      audit.lifeguard_id,
+      deadlineHours,
+      coachingNotes,
+    )
 
-    if (error) {
-      toast.error('Failed to assign remediation task.')
+    if (error || !data) {
+      toast.error(error ?? 'Failed to assign remediation task.')
     } else {
       setRemTask(data)
-      // Update audit status
-      await supabase.from('audits').update({ status: 'remediated' }).eq('id', audit.id)
       toast.success(`Remediation task assigned — ${guardName} has ${deadlineHours} hours.`)
     }
     setAssigning(false)
@@ -230,9 +220,9 @@ export function AuditResultClient({
           {!passed ? (
             <>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <div className={`w-2 h-2 rounded-full ${remTask ? 'bg-red-500 animate-pulse' : 'bg-gray-300'}`} />
                 <p className="text-xs font-semibold text-gray-800 uppercase tracking-wide">
-                  {remTask ? 'Hot Seat — Active' : 'Added to Hot Seat'}
+                  {remTask ? 'Hot Seat — Active' : 'Pending Assignment'}
                 </p>
               </div>
 

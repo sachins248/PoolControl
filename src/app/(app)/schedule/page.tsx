@@ -1,4 +1,5 @@
-import { getDemoUser } from '@/lib/demo-auth'
+import { requireUser } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
 import { getDailySchedule, AUDIT_TYPES, AUDIT_DISPLAY } from '@/lib/schedule'
 import { ScheduleCellComponent } from '@/components/schedule/cell'
 import { LifeguardAvatar } from '@/components/shared/lifeguard-avatar'
@@ -13,9 +14,17 @@ const PRIORITY_STYLES: Record<Priority, string> = {
 }
 
 export default async function SchedulePage() {
-  const profile = await getDemoUser()
+  const profile = await requireUser()
 
-  if (!profile?.facility_id) {
+  // Lifeguards don't have access to the schedule — redirect to their own profile
+  if (profile.role === 'lifeguard') {
+    const { redirect } = await import('next/navigation')
+    redirect('/my-profile')
+  }
+
+  const supabase = createClient()
+
+  if (!profile.facility_id) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-gray-500">No facility assigned. Contact your director.</p>
@@ -23,7 +32,7 @@ export default async function SchedulePage() {
     )
   }
 
-  const schedule = await getDailySchedule(profile.facility_id)
+  const schedule = await getDailySchedule(profile.facility_id, supabase)
   const completedPct = schedule.total > 0 ? Math.round((schedule.done / schedule.total) * 100) : 0
 
   return (
