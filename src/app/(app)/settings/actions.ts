@@ -49,11 +49,15 @@ export async function addStaffMember(formData: FormData) {
     throw new Error(profileError.message)
   }
 
-  // Send a password setup link (recovery flow) so they set their own password on first login
-  await serviceClient.auth.admin.generateLink({
-    type: 'recovery',
+  // Send OTP code so new user can log in without a link
+  const { createClient: createAnonClient } = await import('@supabase/supabase-js')
+  const anonClient = createAnonClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  )
+  await anonClient.auth.signInWithOtp({
     email,
-    options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password` },
+    options: { shouldCreateUser: false },
   })
 
   revalidatePath('/settings')
