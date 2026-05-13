@@ -73,9 +73,7 @@ export function Sidebar({ facilityName = 'Aquatics Command Center', userRole, us
     <aside className="flex flex-col w-64 min-h-screen bg-[#0f1e2e] text-white shrink-0">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-500 text-white font-bold text-sm shrink-0">
-          PC
-        </div>
+        <img src="/logo.jpeg" alt="PoolControl.ai" className="w-9 h-9 rounded-lg object-cover shrink-0" />
         <div className="min-w-0">
           <p className="text-sm font-semibold text-white leading-tight">PoolControl.ai</p>
           <p className="text-xs text-white/50 truncate leading-tight mt-0.5">{facilityName}</p>

@@ -4,7 +4,7 @@ import { Suspense } from 'react'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Waves, Eye, EyeOff, CheckCircle, XCircle, Link2Off } from 'lucide-react'
+import { Eye, EyeOff, CheckCircle, XCircle, Link2Off } from 'lucide-react'
 
 type PageState = 'verifying' | 'ready' | 'expired'
 
@@ -79,9 +79,7 @@ function ResetPasswordContent() {
       <div className="min-h-screen bg-gradient-to-br from-[#0a1628] via-[#0f1e2e] to-[#0a1f1a] flex items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center mb-8">
-            <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500 shadow-lg shadow-emerald-500/30 mb-4">
-              <Waves className="w-7 h-7 text-white" />
-            </div>
+            <img src="/logo.jpeg" alt="PoolControl.ai" className="w-14 h-14 rounded-2xl object-cover shadow-lg mb-4" />
             <h1 className="text-2xl font-bold text-white tracking-tight">PoolControl.ai</h1>
           </div>
           <div className="bg-white/[0.06] border border-white/[0.1] rounded-2xl p-7 backdrop-blur-sm shadow-2xl text-center">
@@ -109,9 +107,7 @@ function ResetPasswordContent() {
     <div className="min-h-screen bg-gradient-to-br from-[#0a1628] via-[#0f1e2e] to-[#0a1f1a] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500 shadow-lg shadow-emerald-500/30 mb-4">
-            <Waves className="w-7 h-7 text-white" />
-          </div>
+          <img src="/logo.jpeg" alt="PoolControl.ai" className="w-14 h-14 rounded-2xl object-cover shadow-lg mb-4" />
           <h1 className="text-2xl font-bold text-white tracking-tight">PoolControl.ai</h1>
           {isSetup && (
             <p className="text-white/40 text-sm mt-1">Aquatics Performance Platform</p>

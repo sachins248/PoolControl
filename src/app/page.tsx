@@ -379,9 +379,7 @@ export default async function RootPage() {
       <nav className="nav">
         <div className="nav-inner">
           <a href="/" className="nav-logo">
-            <div className="nav-mark">
-              <svg viewBox="0 0 24 24"><path d="M2 12c1.5-4 4.5-6 10-6s8.5 2 10 6c-1.5 4-4.5 6-10 6S3.5 16 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-            </div>
+            <img src="/logo.jpeg" alt="PoolControl.ai" style={{width:32,height:32,borderRadius:8,objectFit:'cover'}} />
             <span className="nav-name">PoolControl.ai</span>
           </a>
           <div className="nav-links">
@@ -703,9 +701,7 @@ export default async function RootPage() {
       <footer className="footer">
         <div className="footer-inner">
           <div className="footer-logo">
-            <div className="footer-logo-mark">
-              <svg viewBox="0 0 24 24"><path d="M2 12c1.5-4 4.5-6 10-6s8.5 2 10 6c-1.5 4-4.5 6-10 6S3.5 16 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-            </div>
+            <img src="/logo.jpeg" alt="PoolControl.ai" style={{width:28,height:28,borderRadius:7,objectFit:'cover'}} />
             <span className="footer-name">PoolControl.ai</span>
           </div>
           <span className="footer-copy">© {new Date().getFullYear()} PoolControl.ai · Aquatics Performance Platform</span>

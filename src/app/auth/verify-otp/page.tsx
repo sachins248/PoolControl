@@ -4,7 +4,6 @@ import { Suspense } from 'react'
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Waves } from 'lucide-react'
 
 type PageState = 'entering' | 'verifying' | 'error'
 
@@ -98,9 +97,7 @@ function VerifyOTPContent() {
 
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500 shadow-lg shadow-emerald-500/30 mb-4">
-            <Waves className="w-7 h-7 text-white" />
-          </div>
+          <img src="/logo.jpeg" alt="PoolControl.ai" className="w-14 h-14 rounded-2xl object-cover shadow-lg mb-4" />
           <h1 className="text-2xl font-bold text-white tracking-tight">PoolControl.ai</h1>
           <p className="text-white/40 text-sm mt-1">Aquatics Performance Platform</p>
         </div>
