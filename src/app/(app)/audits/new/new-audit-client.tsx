@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import {
-  Eye, Activity, Heart, Send, Shield, Smile, Sparkles, ChevronRight, ChevronLeft, Bot,
+  Eye, Activity, Heart, Send, Shield, Smile, Sparkles, ChevronRight, ChevronLeft,
+  MapPin, Zap,
 } from 'lucide-react'
 import type { AuditType, UserProfile, CriterionResult, AuditCriterion } from '@/types'
 import { submitAudit } from './actions'
@@ -50,7 +51,6 @@ export function NewAuditClient({
   const router = useRouter()
   const supabase = createClient()
 
-  // Step 1: pick type; Step 2: pick lifeguard+context; Step 3: audit form
   const [step, setStep] = useState(preselectedLifeguardId && preselectedAuditType ? 3 : 1)
   const [selectedType, setSelectedType] = useState<AuditType | null>(
     preselectedAuditType ? auditTypes.find((a) => a.name === preselectedAuditType) ?? null : null
@@ -59,32 +59,27 @@ export function NewAuditClient({
     preselectedLifeguardId ? lifeguards.find((l) => l.id === preselectedLifeguardId) ?? null : null
   )
   const [selectedZone, setSelectedZone] = useState(zones[0] ?? '')
-  const [contextNotes, setContextNotes] = useState('')
   const [criteriaStates, setCriteriaStates] = useState<CriterionState[]>([])
   const [activeCriterionIdx, setActiveCriterionIdx] = useState(0)
   const [coachText, setCoachText] = useState('')
   const [coachLoading, setCoachLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [auditId, setAuditId] = useState<string | null>(null)
+  const [auditNotes, setAuditNotes] = useState('')
   const coachAbortRef = useRef<AbortController | null>(null)
 
-  // Visible audit types — filter director_only unless role is director
   const visibleTypes = auditTypes.filter((t) =>
-    supervisorRole === 'director' || !t.director_only
+    supervisorRole === 'manager' || supervisorRole === 'director' || !t.director_only
   )
 
-  // When type is selected, initialize criteria states
   useEffect(() => {
     if (selectedType) {
-      setCriteriaStates(
-        selectedType.criteria.map((c) => ({ criterion: c, result: null, comment: '' }))
-      )
+      setCriteriaStates(selectedType.criteria.map((c) => ({ criterion: c, result: null, comment: '' })))
       setActiveCriterionIdx(0)
       setCoachText('')
     }
   }, [selectedType])
 
-  // Fetch Coach PC guidance when active criterion changes
   const fetchCoachGuidance = useCallback(async (idx: number) => {
     if (!selectedType || !criteriaStates[idx]) return
     if (coachAbortRef.current) coachAbortRef.current.abort()
@@ -106,6 +101,7 @@ export function NewAuditClient({
             result: s.result,
           })),
           lifeguard_name: selectedLifeguard?.name ?? 'the lifeguard',
+          lifeguard_id: selectedLifeguard?.id,
           zone: selectedZone,
         }),
         signal: controller.signal,
@@ -119,7 +115,7 @@ export function NewAuditClient({
         setCoachText((prev) => prev + decoder.decode(value))
       }
     } catch (e: any) {
-      if (e.name !== 'AbortError') setCoachText('Coach PC unavailable — check your connection.')
+      if (e.name !== 'AbortError') setCoachText('Coach PC unavailable.')
     } finally {
       setCoachLoading(false)
     }
@@ -131,7 +127,6 @@ export function NewAuditClient({
     }
   }, [activeCriterionIdx, step])
 
-  // Create audit record in DB on entering step 3
   useEffect(() => {
     if (step === 3 && !auditId && selectedType && selectedLifeguard) {
       createAuditRecord()
@@ -149,7 +144,6 @@ export function NewAuditClient({
         audit_type_name: selectedType!.name,
         status: 'in_progress',
         zone: selectedZone,
-        notes: contextNotes || null,
       })
       .select('id')
       .single()
@@ -162,11 +156,8 @@ export function NewAuditClient({
       next[idx] = { ...next[idx], result }
       return next
     })
-    // Advance to next unanswered criterion
     const nextUnanswered = criteriaStates.findIndex((c, i) => i > idx && c.result === null)
-    if (nextUnanswered !== -1) {
-      setActiveCriterionIdx(nextUnanswered)
-    }
+    if (nextUnanswered !== -1) setActiveCriterionIdx(nextUnanswered)
   }
 
   function setComment(idx: number, comment: string) {
@@ -178,7 +169,7 @@ export function NewAuditClient({
   }
 
   const completedCount = criteriaStates.filter((c) => c.result !== null).length
-  const allAnswered = completedCount === criteriaStates.length
+  const allAnswered = completedCount === criteriaStates.length && criteriaStates.length > 0
 
   function computeScore(): { score: number; passed: boolean } {
     const weights = { pass: 1, needs_attention: 0.5, fail: 0 }
@@ -201,7 +192,8 @@ export function NewAuditClient({
     }))
 
     const { error } = await submitAudit(
-      auditId, score, passed, resultsToInsert, facilityId, selectedLifeguard?.id ?? '',
+      auditId, score, passed, resultsToInsert,
+      auditNotes || undefined,
     )
 
     if (error) {
@@ -210,11 +202,14 @@ export function NewAuditClient({
       return
     }
 
-    toast.success('Audit submitted successfully')
+    toast.success('Audit submitted')
     router.push(`/audits/result/${auditId}`)
   }
 
   const runningScore = computeScore()
+  const progressPct = criteriaStates.length > 0
+    ? Math.round((completedCount / criteriaStates.length) * 100)
+    : 0
 
   // ─── STEP 1: Select Audit Type ─────────────────────────────────────────────
   if (step === 1) {
@@ -222,7 +217,7 @@ export function NewAuditClient({
       <div className="flex flex-col h-full">
         <div className="bg-[#0f1e2e] text-white px-8 py-5">
           <h1 className="text-xl font-bold">New Audit</h1>
-          <p className="text-white/50 text-sm mt-0.5">Step 1 of 3: Select Audit Type</p>
+          <p className="text-white/50 text-sm mt-0.5">Step 1 of 3 — Select audit type</p>
           <div className="mt-3 flex gap-1">
             <div className="h-1 w-16 rounded-full bg-emerald-400" />
             <div className="h-1 w-16 rounded-full bg-white/20" />
@@ -241,17 +236,13 @@ export function NewAuditClient({
                   onClick={() => { setSelectedType(type); setStep(2) }}
                   className={cn(
                     'bg-white border-2 rounded-2xl p-5 text-left transition-all hover:shadow-md hover:border-emerald-300',
-                    selectedType?.id === type.id
-                      ? 'border-emerald-400 bg-emerald-50'
-                      : 'border-gray-200'
+                    selectedType?.id === type.id ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
                   )}
                 >
                   <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 mb-3">
                     {TYPE_ICONS[type.name]}
                   </div>
-                  <h3 className="font-semibold text-gray-900 text-sm leading-tight">
-                    {type.display_name}
-                  </h3>
+                  <h3 className="font-semibold text-gray-900 text-sm leading-tight">{type.display_name}</h3>
                   <div className="mt-3 flex items-center gap-1 flex-wrap min-h-[28px]">
                     {dueLifeguards.length === 0 ? (
                       <span className="text-xs text-gray-400 italic">No audits due today</span>
@@ -270,13 +261,13 @@ export function NewAuditClient({
     )
   }
 
-  // ─── STEP 2: Select Lifeguard & Context ────────────────────────────────────
+  // ─── STEP 2: Select Lifeguard & Zone ───────────────────────────────────────
   if (step === 2) {
     return (
       <div className="flex flex-col h-full">
         <div className="bg-[#0f1e2e] text-white px-8 py-5">
           <h1 className="text-xl font-bold">New Audit — {selectedType?.display_name}</h1>
-          <p className="text-white/50 text-sm mt-0.5">Step 2 of 3: Select Lifeguard &amp; Context</p>
+          <p className="text-white/50 text-sm mt-0.5">Step 2 of 3 — Select lifeguard &amp; zone</p>
           <div className="mt-3 flex gap-1">
             <div className="h-1 w-16 rounded-full bg-emerald-400" />
             <div className="h-1 w-16 rounded-full bg-emerald-400" />
@@ -286,7 +277,6 @@ export function NewAuditClient({
 
         <div className="flex-1 px-8 py-6 max-w-xl">
           <div className="space-y-5">
-            {/* Lifeguard picker */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Lifeguard</label>
               <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
@@ -306,9 +296,7 @@ export function NewAuditClient({
                       <LifeguardAvatar name={lg.name} avatarColor={lg.avatar_color} size="sm" />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{lg.name}</p>
-                        {isDue && (
-                          <p className="text-[10px] text-amber-600 font-medium">Due today</p>
-                        )}
+                        {isDue && <p className="text-[10px] text-amber-600 font-medium">Due today</p>}
                       </div>
                     </button>
                   )
@@ -316,7 +304,6 @@ export function NewAuditClient({
               </div>
             </div>
 
-            {/* Zone picker */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Zone / Pool</label>
               <div className="flex flex-wrap gap-2">
@@ -335,20 +322,6 @@ export function NewAuditClient({
                   </button>
                 ))}
               </div>
-            </div>
-
-            {/* Optional notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <Textarea
-                placeholder='e.g. "Crowded — peak Saturday afternoon"'
-                value={contextNotes}
-                onChange={(e) => setContextNotes(e.target.value)}
-                rows={2}
-                className="resize-none"
-              />
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -370,217 +343,213 @@ export function NewAuditClient({
   }
 
   // ─── STEP 3: Complete Audit ────────────────────────────────────────────────
+  const activeCriterion = criteriaStates[activeCriterionIdx]
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="bg-[#0f1e2e] text-white px-8 py-4">
-        <h1 className="text-lg font-bold">New Audit — {selectedType?.display_name}</h1>
-        <p className="text-white/50 text-sm">
-          Step 3 of 3: Complete Audit · Lifeguard: {selectedLifeguard?.name} · Zone: {selectedZone}
-        </p>
-        <div className="mt-3 flex gap-1">
-          <div className="h-1 w-16 rounded-full bg-emerald-400" />
-          <div className="h-1 w-16 rounded-full bg-emerald-400" />
-          <div className="h-1 w-16 rounded-full bg-emerald-400" />
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-lg font-bold">{selectedType?.display_name}</h1>
+            <p className="text-white/40 text-xs mt-0.5">
+              Step 3 of 3 &nbsp;·&nbsp; {selectedLifeguard?.name} &nbsp;·&nbsp; {selectedZone}
+            </p>
+          </div>
+          <div className="ml-auto text-right">
+            <p className="text-2xl font-bold text-white">
+              {completedCount > 0 ? runningScore.score.toFixed(1) : '—'}
+            </p>
+            <p className="text-[10px] text-white/30 uppercase tracking-wide">Running score</p>
+          </div>
         </div>
+        <div className="mt-3 w-full h-1 bg-white/10 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-400 rounded-full transition-all duration-300"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+        <p className="text-[10px] text-white/30 mt-1">{completedCount} of {criteriaStates.length} criteria · {progressPct}%</p>
       </div>
 
-      {/* Body — two panel */}
       <div className="flex-1 flex min-h-0">
-        {/* Left: criteria */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 border-r border-gray-200">
-          {/* Context strip */}
-          <div className="flex gap-4 mb-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Type of Pool</p>
-              <p className="text-sm font-medium text-gray-900 mt-0.5">{selectedZone}</p>
-            </div>
-            <div className="border-l border-gray-200 pl-4">
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Lifeguard</p>
-              <p className="text-sm font-medium text-gray-900 mt-0.5">{selectedLifeguard?.name}</p>
-            </div>
-          </div>
-
-          <p className="text-xs text-gray-400 uppercase tracking-wide mb-3">
-            Criteria · {completedCount} of {criteriaStates.length} completed
-          </p>
-
-          <div className="space-y-3">
-            {criteriaStates.map((state, idx) => (
-              <div
-                key={state.criterion.id}
-                onClick={() => { setActiveCriterionIdx(idx); fetchCoachGuidance(idx) }}
-                className={cn(
-                  'rounded-xl border p-4 cursor-pointer transition-all',
-                  activeCriterionIdx === idx
-                    ? 'border-blue-400 bg-blue-50/50 ring-1 ring-blue-300'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                )}
-              >
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <p className={cn(
-                    'text-sm font-medium text-gray-900',
-                    activeCriterionIdx === idx && 'text-blue-900'
-                  )}>
-                    {activeCriterionIdx === idx && (
-                      <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2 mb-0.5" />
-                    )}
-                    {state.criterion.label}
-                    {activeCriterionIdx === idx && (
-                      <span className="ml-2 text-xs text-blue-500 font-normal">— Evaluating now</span>
-                    )}
-                  </p>
-                  {state.result && (
-                    <span className={cn(
-                      'text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap',
-                      state.result === 'pass' && 'bg-emerald-100 text-emerald-700',
-                      state.result === 'needs_attention' && 'bg-amber-100 text-amber-700',
-                      state.result === 'fail' && 'bg-red-100 text-red-700',
-                    )}>
-                      {state.result === 'pass' && '✓ Pass'}
-                      {state.result === 'needs_attention' && '△ Needs Attention'}
-                      {state.result === 'fail' && '✕ Fail'}
-                    </span>
+        {/* Left: criteria list */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 border-r border-gray-200 space-y-3">
+          {criteriaStates.map((state, idx) => (
+            <div
+              key={state.criterion.id}
+              onClick={() => { setActiveCriterionIdx(idx); fetchCoachGuidance(idx) }}
+              className={cn(
+                'rounded-xl border p-4 cursor-pointer transition-all',
+                activeCriterionIdx === idx
+                  ? 'border-blue-400 bg-blue-50/40 ring-1 ring-blue-300'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              )}
+            >
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <p className={cn(
+                  'text-sm font-medium',
+                  activeCriterionIdx === idx ? 'text-blue-900' : 'text-gray-900'
+                )}>
+                  {activeCriterionIdx === idx && (
+                    <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2 mb-0.5" />
                   )}
-                </div>
-
-                {/* Three-button input */}
-                <div className="flex gap-2">
-                  {(['pass', 'needs_attention', 'fail'] as CriterionResult[]).map((r) => (
-                    <button
-                      key={r}
-                      onClick={(e) => { e.stopPropagation(); setResult(idx, r) }}
-                      className={cn(
-                        'flex-1 py-2 px-3 rounded-lg text-xs font-semibold border transition-all',
-                        state.result === r
-                          ? r === 'pass' ? 'bg-emerald-500 text-white border-emerald-500'
-                          : r === 'needs_attention' ? 'bg-amber-500 text-white border-amber-500'
-                          : 'bg-red-500 text-white border-red-500'
-                          : r === 'pass' ? 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                          : r === 'needs_attention' ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
-                          : 'border-red-300 text-red-700 hover:bg-red-50'
-                      )}
-                    >
-                      {r === 'pass' ? 'PASS' : r === 'needs_attention' ? 'NEEDS ATTENTION' : 'FAIL'}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Optional comment (shows if criterion is active or has a comment) */}
-                {(activeCriterionIdx === idx || state.comment) && (
-                  <Textarea
-                    className="mt-2 text-xs resize-none"
-                    placeholder="Optional note..."
-                    rows={1}
-                    value={state.comment}
-                    onChange={(e) => { e.stopPropagation(); setComment(idx, e.target.value) }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
+                  {state.criterion.label}
+                </p>
+                {state.result && (
+                  <span className={cn(
+                    'text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0',
+                    state.result === 'pass' && 'bg-emerald-100 text-emerald-700',
+                    state.result === 'needs_attention' && 'bg-amber-100 text-amber-700',
+                    state.result === 'fail' && 'bg-red-100 text-red-700',
+                  )}>
+                    {state.result === 'pass' ? '✓ Pass' : state.result === 'needs_attention' ? '△ Attention' : '✕ Fail'}
+                  </span>
                 )}
               </div>
-            ))}
-          </div>
+
+              <div className="flex gap-2">
+                {(['pass', 'needs_attention', 'fail'] as CriterionResult[]).map((r) => (
+                  <button
+                    key={r}
+                    onClick={(e) => { e.stopPropagation(); setResult(idx, r) }}
+                    className={cn(
+                      'flex-1 py-2 px-3 rounded-lg text-xs font-semibold border transition-all',
+                      state.result === r
+                        ? r === 'pass' ? 'bg-emerald-500 text-white border-emerald-500'
+                        : r === 'needs_attention' ? 'bg-amber-500 text-white border-amber-500'
+                        : 'bg-red-500 text-white border-red-500'
+                        : r === 'pass' ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                        : r === 'needs_attention' ? 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                        : 'border-red-200 text-red-700 hover:bg-red-50'
+                    )}
+                  >
+                    {r === 'pass' ? 'PASS' : r === 'needs_attention' ? 'NEEDS ATTN' : 'FAIL'}
+                  </button>
+                ))}
+              </div>
+
+              {(activeCriterionIdx === idx || state.comment) && (
+                <Textarea
+                  className="mt-2 text-xs resize-none"
+                  placeholder="Optional note on this criterion..."
+                  rows={1}
+                  value={state.comment}
+                  onChange={(e) => { e.stopPropagation(); setComment(idx, e.target.value) }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              )}
+            </div>
+          ))}
+
+          {/* Notes — shown after all criteria are answered */}
+          {allAnswered && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-2">
+              <p className="text-sm font-medium text-gray-700">Audit Notes <span className="text-gray-400 font-normal">(optional)</span></p>
+              <p className="text-xs text-gray-400">Conditions, anomalies, or anything worth documenting about this session.</p>
+              <Textarea
+                placeholder='e.g. "Peak crowd, water choppy from wave pool. Guard was distracted by guest interaction mid-scan."'
+                value={auditNotes}
+                onChange={(e) => setAuditNotes(e.target.value)}
+                rows={3}
+                className="resize-none bg-white"
+              />
+            </div>
+          )}
 
           {/* Submit */}
-          <div className="pt-4">
+          <div className="pt-2 pb-6">
             <Button
               disabled={!allAnswered || submitting}
               onClick={handleSubmit}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-semibold py-3"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white font-semibold py-3 text-base"
             >
-              {submitting ? 'Submitting...' : 'Submit Audit'}
+              {submitting ? 'Submitting...' : allAnswered ? 'Submit Audit' : `${criteriaStates.length - completedCount} criteria remaining`}
             </Button>
           </div>
         </div>
 
-        {/* Right: Coach PC */}
-        <div className="w-80 shrink-0 bg-[#0f1e2e] text-white flex flex-col">
-          {/* Coach header */}
+        {/* Right: Coach PC panel */}
+        <div className="w-72 shrink-0 bg-[#0a1628] text-white flex flex-col">
+          {/* Header */}
           <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <p className="text-sm font-semibold">Coach PC</p>
-              <p className="text-xs text-white/40">AI Audit Assistant</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold leading-tight">Coach PC</p>
+              <p className="text-[10px] text-white/40">Real-time guidance</p>
             </div>
             <div className={cn(
-              'ml-auto w-2 h-2 rounded-full',
+              'w-1.5 h-1.5 rounded-full shrink-0',
               coachLoading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'
             )} />
           </div>
 
-          {/* Coach content */}
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-sm">
-            {criteriaStates[activeCriterionIdx] && (
-              <>
+          {/* Context chips */}
+          <div className="px-5 pt-4 pb-2 flex flex-wrap gap-1.5">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] text-white/60">
+              <MapPin className="w-2.5 h-2.5" /> {selectedZone}
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] text-white/60">
+              {selectedLifeguard?.name}
+            </span>
+          </div>
+
+          {/* AI guidance */}
+          <div className="flex-1 overflow-y-auto px-5 py-3">
+            {activeCriterion && (
+              <div className="space-y-3">
+                {/* Current criterion label */}
                 <div>
-                  <p className="text-[10px] text-emerald-400 uppercase tracking-widest font-semibold mb-2">
-                    Currently Evaluating
+                  <p className="text-[10px] text-white/30 uppercase tracking-widest mb-1.5">Evaluating now</p>
+                  <p className="text-xs font-semibold text-white/90 leading-snug">
+                    {activeCriterion.criterion.label}
                   </p>
-                  <div className="bg-white/5 rounded-lg p-3 text-white/80 text-xs leading-relaxed min-h-[60px]">
+                  <span className={cn(
+                    'inline-block mt-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded',
+                    activeCriterion.criterion.liability_weight === 'critical' ? 'bg-red-500/20 text-red-400' :
+                    activeCriterion.criterion.liability_weight === 'high' ? 'bg-amber-500/20 text-amber-400' :
+                    'bg-white/10 text-white/40'
+                  )}>
+                    {activeCriterion.criterion.liability_weight} liability
+                  </span>
+                </div>
+
+                {/* AI coaching text */}
+                <div className="relative">
+                  <div className="absolute -left-1 top-0 bottom-0 w-0.5 bg-emerald-500/50 rounded-full" />
+                  <div className="pl-3">
                     {coachLoading && !coachText ? (
-                      <span className="animate-pulse text-white/40">Coach PC is thinking...</span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-0.5">
+                          {[0, 1, 2].map((i) => (
+                            <div
+                              key={i}
+                              className="w-1 h-1 rounded-full bg-white/30 animate-bounce"
+                              style={{ animationDelay: `${i * 120}ms` }}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-[10px] text-white/30">Analyzing...</span>
+                      </div>
+                    ) : coachText ? (
+                      <p className="text-sm text-white/90 leading-relaxed">{coachText}</p>
                     ) : (
-                      coachText || (
-                        <span className="text-white/30">
-                          Click a criterion to get guidance from Coach PC.
-                        </span>
-                      )
+                      <p className="text-xs text-white/25 italic">Select a criterion to get guidance.</p>
                     )}
                   </div>
                 </div>
-
-                {/* What to look for — static from criterion data */}
-                {criteriaStates[activeCriterionIdx].criterion.what_to_look_for?.length > 0 && (
-                  <div>
-                    <p className="text-[10px] text-emerald-400 uppercase tracking-widest font-semibold mb-2">
-                      What to Look For
-                    </p>
-                    <ul className="space-y-1">
-                      {criteriaStates[activeCriterionIdx].criterion.what_to_look_for.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-white/70">
-                          <span className="text-white/30 mt-0.5">•</span>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </>
+              </div>
             )}
           </div>
 
-          {/* Running score */}
-          <div className="px-5 py-4 border-t border-white/10">
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-xs text-white/40 mb-1">Running Score</p>
-                <p className="text-3xl font-bold text-white">
-                  {completedCount > 0 ? runningScore.score.toFixed(1) : '—'}
-                </p>
-                <p className="text-xs text-white/40 mt-0.5">
-                  Based on {completedCount} of {criteriaStates.length} criteria
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-white/40 mb-1">Audit progress</p>
-                <p className="text-sm font-semibold text-white">
-                  {criteriaStates.length > 0
-                    ? Math.round((completedCount / criteriaStates.length) * 100)
-                    : 0}%
-                </p>
-              </div>
-            </div>
-            <div className="mt-2 w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-400 rounded-full transition-all"
-                style={{
-                  width: criteriaStates.length > 0
-                    ? `${(completedCount / criteriaStates.length) * 100}%`
-                    : '0%'
-                }}
-              />
+          {/* Footer — liability weight legend */}
+          <div className="px-5 py-4 border-t border-white/10 space-y-2">
+            <p className="text-[9px] text-white/25 uppercase tracking-widest">Liability key</p>
+            <div className="flex gap-3">
+              <span className="text-[9px] text-red-400">● Critical</span>
+              <span className="text-[9px] text-amber-400">● High</span>
+              <span className="text-[9px] text-white/30">● Standard</span>
             </div>
           </div>
         </div>

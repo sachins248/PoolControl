@@ -34,6 +34,7 @@ export default async function NewAuditPage({
     .select('*')
     .eq('facility_id', profile.facility_id)
     .eq('role', 'lifeguard')
+    .eq('is_active', true)
     .order('name')
 
   const now = new Date()

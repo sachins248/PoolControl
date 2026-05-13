@@ -42,6 +42,7 @@ export default async function TeamPage() {
       .select('id, name, avatar_color')
       .eq('facility_id', profile.facility_id)
       .eq('role', 'lifeguard')
+      .eq('is_active', true)
       .order('name'),
     supabase
       .from('audit_criteria_results')
@@ -57,11 +58,17 @@ export default async function TeamPage() {
   ])
 
   const allAudits = audits ?? []
-  const allLifeguards = lifeguards ?? []
+  const allLifeguards = lifeguards ?? [] // already filtered to is_active = true
+
+  // Restrict all stats to audits from currently active lifeguards only
+  const activeGuardIds = new Set(allLifeguards.map((g) => g.id))
+  const activeAudits = allAudits.filter((a) => activeGuardIds.has(a.lifeguard_id))
+  const activeAuditIds = new Set(activeAudits.map((a) => a.id))
+  const activeCriteria = (criteria ?? []).filter((c) => activeAuditIds.has(c.audit_id))
 
   // ── Pass rate by audit type ──────────────────────────────────────────────────
   const byType: Record<string, { pass: number; total: number }> = {}
-  for (const a of allAudits) {
+  for (const a of activeAudits) {
     if (a.passed === null) continue
     if (!byType[a.audit_type_name]) byType[a.audit_type_name] = { pass: 0, total: 0 }
     byType[a.audit_type_name].total++
@@ -73,8 +80,8 @@ export default async function TeamPage() {
     .sort((a, b) => a.rate - b.rate)
 
   // ── LPR per lifeguard ───────────────────────────────────────────────────────
-  const auditsByGuard: Record<string, typeof allAudits> = {}
-  for (const a of allAudits) {
+  const auditsByGuard: Record<string, typeof activeAudits> = {}
+  for (const a of activeAudits) {
     if (!auditsByGuard[a.lifeguard_id]) auditsByGuard[a.lifeguard_id] = []
     auditsByGuard[a.lifeguard_id].push(a)
   }
@@ -96,7 +103,7 @@ export default async function TeamPage() {
 
   // ── Most common failures ─────────────────────────────────────────────────────
   const failCounts: Record<string, number> = {}
-  for (const c of criteria ?? []) {
+  for (const c of activeCriteria) {
     if (c.result === 'fail' || c.result === 'needs_attention') {
       failCounts[c.criterion_label] = (failCounts[c.criterion_label] ?? 0) + 1
     }
@@ -105,9 +112,9 @@ export default async function TeamPage() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
 
-  const totalAudits = allAudits.filter((a) => a.passed !== null).length
+  const totalAudits = activeAudits.filter((a) => a.passed !== null).length
   const overallPassRate = totalAudits > 0
-    ? allAudits.filter((a) => a.passed).length / totalAudits
+    ? activeAudits.filter((a) => a.passed).length / totalAudits
     : null
 
   return (

@@ -2,6 +2,7 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireUser } from '@/lib/auth'
+import { sendAuditFailureWebhooks } from '@/lib/webhooks'
 
 interface CriteriaResult {
   audit_id: string
@@ -16,16 +17,30 @@ export async function submitAudit(
   score: number,
   passed: boolean,
   criteriaResults: CriteriaResult[],
-  facilityId: string,
-  lifeguardId: string,
+  notes?: string,
 ) {
   const profile = await requireUser()
   const supabase = createServiceClient()
 
-  // Insert criteria results
+  // Verify the audit belongs to the caller's facility — never trust client-supplied IDs
+  const { data: auditRecord } = await supabase
+    .from('audits')
+    .select('facility_id, lifeguard_id, zone, audit_type_name')
+    .eq('id', auditId)
+    .single()
+
+  if (!auditRecord || auditRecord.facility_id !== profile.facility_id) {
+    return { error: 'Forbidden' }
+  }
+
+  const { facility_id: facilityId, lifeguard_id: lifeguardId } = auditRecord
+
+  // Override audit_id on every criteria result — never trust the client-supplied value
+  const safeResults = criteriaResults.map((r) => ({ ...r, audit_id: auditId }))
+
   const { error: criteriaError } = await supabase
     .from('audit_criteria_results')
-    .insert(criteriaResults)
+    .insert(safeResults)
 
   if (criteriaError) {
     return { error: 'Failed to save criteria results: ' + criteriaError.message }
@@ -38,6 +53,7 @@ export async function submitAudit(
       status: 'completed',
       score,
       passed,
+      notes: notes || null,
       submitted_at: new Date().toISOString(),
     })
     .eq('id', auditId)
@@ -57,6 +73,39 @@ export async function submitAudit(
       metadata: { score, passed, lifeguard_id: lifeguardId },
     })
   } catch { /* non-critical */ }
+
+  // Fire Slack/Teams webhook if audit failed (non-blocking)
+  if (!passed) {
+    try {
+      const [{ data: facilityData }, { data: guardData }, { data: auditData }] = await Promise.all([
+        supabase.from('facilities').select('name, config').eq('id', facilityId).single(),
+        supabase.from('user_profiles').select('name').eq('id', lifeguardId).single(),
+        supabase.from('audits').select('zone, audit_type_name').eq('id', auditId).single(),
+      ])
+
+      const config = (facilityData?.config ?? {}) as Record<string, string>
+      const hasWebhook = config.slack_webhook_url || config.teams_webhook_url
+
+      if (hasWebhook) {
+        const failedCriteria = criteriaResults
+          .filter((r) => r.result === 'fail')
+          .map((r) => r.criterion_label)
+
+        await sendAuditFailureWebhooks(
+          { slack: config.slack_webhook_url, teams: config.teams_webhook_url },
+          {
+            lifeguardName: guardData?.name ?? 'Unknown',
+            auditTypeName: auditData?.audit_type_name ?? 'Audit',
+            zone: auditData?.zone ?? 'Unknown Zone',
+            score,
+            failedCriteria,
+            auditId,
+            facilityName: facilityData?.name ?? 'Your Facility',
+          },
+        )
+      }
+    } catch { /* non-critical — never block audit submission */ }
+  }
 
   return { error: null }
 }

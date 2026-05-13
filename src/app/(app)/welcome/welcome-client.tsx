@@ -17,6 +17,11 @@ const ROLE_BULLETS: Record<string, string[]> = {
     'Assign remediations and track completion',
     'Monitor your team\'s daily schedule',
   ],
+  manager: [
+    'Review facility-wide performance metrics',
+    'Manage your team roster and send invites',
+    'Configure audit cadences and facility settings',
+  ],
   director: [
     'Review facility-wide performance metrics',
     'Manage your team roster and send invites',
@@ -32,6 +37,7 @@ const ROLE_BULLETS: Record<string, string[]> = {
 const ROLE_CTA: Record<string, string> = {
   lifeguard: 'Go to my profile →',
   supervisor: 'Open schedule →',
+  manager: 'Open schedule →',
   director: 'Open schedule →',
   corporate: 'Go to dashboard →',
 }
@@ -39,6 +45,7 @@ const ROLE_CTA: Record<string, string> = {
 const ROLE_BADGE: Record<string, string> = {
   lifeguard: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
   supervisor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+  manager: 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
   director: 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
   corporate: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
 }

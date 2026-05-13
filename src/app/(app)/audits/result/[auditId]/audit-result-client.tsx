@@ -19,7 +19,6 @@ interface AuditResultClientProps {
   remediationTask: any
   hotSeatQueue: any[]
   coachingPoints: Array<{ title: string; description: string }>
-  supervisorId: string
 }
 
 function useCountdown(deadline: string | null) {
@@ -43,7 +42,7 @@ function useCountdown(deadline: string | null) {
 
 export function AuditResultClient({
   audit, lifeguard, auditType, facility, deadlineHours,
-  remediationTask, hotSeatQueue, coachingPoints, supervisorId,
+  remediationTask, hotSeatQueue, coachingPoints,
 }: AuditResultClientProps) {
   const [editablePoints, setEditablePoints] = useState(
     coachingPoints.map((p) => ({ ...p, editing: false }))
@@ -57,6 +56,9 @@ export function AuditResultClient({
   const passed = audit.passed
   const score = audit.score
   const criteriaResults = audit.audit_criteria_results ?? []
+  const hasFailures = criteriaResults.some(
+    (r: any) => r.result === 'fail' || r.result === 'needs_attention'
+  )
   const guardName = lifeguard?.name ?? 'Unknown'
   const submittedAt = audit.submitted_at
     ? new Date(audit.submitted_at).toLocaleString('en-US', {
@@ -73,8 +75,6 @@ export function AuditResultClient({
 
     const { data, error } = await assignRemediationTask(
       audit.id,
-      audit.facility_id,
-      audit.lifeguard_id,
       deadlineHours,
       coachingNotes,
     )
@@ -165,7 +165,7 @@ export function AuditResultClient({
             What to Talk to {guardName.split(' ')[0]} About
           </p>
 
-          {editablePoints.length === 0 ? (
+          {!hasFailures ? (
             <div className="text-center py-12 text-gray-400">
               <CheckCircle className="w-10 h-10 mx-auto mb-2 text-emerald-400" />
               <p className="font-medium text-gray-600">All criteria passed!</p>

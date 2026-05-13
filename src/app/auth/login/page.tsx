@@ -34,7 +34,29 @@ export default function LoginPage() {
       return
     }
 
-    window.location.href = '/auth/callback-redirect'
+    // Fetch profile before navigating — this proves the session cookie is live
+    // and avoids a race condition where window.location fires before cookies are written
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role, is_first_login')
+      .eq('id', data.user.id)
+      .single()
+
+    if (!profile) {
+      setLoading(false)
+      setError('Account setup incomplete. Contact your facility director.')
+      return
+    }
+
+    const roleMap: Record<string, string> = {
+      lifeguard: '/my-profile',
+      supervisor: '/schedule',
+      manager: '/schedule',
+      director: '/schedule',
+      corporate: '/dashboard',
+    }
+
+    router.push(profile.is_first_login ? '/welcome' : (roleMap[profile.role] ?? '/schedule'))
   }
 
   async function handleSendOTP(e: React.FormEvent) {

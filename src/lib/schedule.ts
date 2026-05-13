@@ -72,6 +72,7 @@ export async function getDailySchedule(
     .select('*')
     .eq('facility_id', facilityId)
     .eq('role', 'lifeguard')
+    .eq('is_active', true)
     .order('name')
 
   if (!lifeguards || lifeguards.length === 0) {

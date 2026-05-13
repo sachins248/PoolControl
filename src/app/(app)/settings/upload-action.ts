@@ -1,6 +1,6 @@
 'use server'
 
-import { requireUserForAction } from '@/lib/auth'
+import { requireUserForAction, isManager } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import * as XLSX from 'xlsx'
@@ -68,7 +68,7 @@ function parseFileToRows(file: File, buffer: ArrayBuffer): { headers: string[]; 
 
 export async function parseAndPreviewCSV(formData: FormData): Promise<ParseResult> {
   const { profile } = await requireUserForAction()
-  if (profile.role !== 'director') throw new Error('Unauthorized')
+  if (!isManager(profile.role)) throw new Error('Unauthorized')
 
   const file = formData.get('file') as File | null
   if (!file) return { rows: [], errors: ['No file provided'] }
@@ -104,8 +104,8 @@ export async function parseAndPreviewCSV(formData: FormData): Promise<ParseResul
       errors.push(`Row ${i + 2}: missing name or email — skipped`)
       continue
     }
-    if (!['lifeguard', 'supervisor', 'director'].includes(role)) {
-      errors.push(`Row ${i + 2}: invalid role "${role}" (must be lifeguard, supervisor, or director) — skipped`)
+    if (!['lifeguard', 'supervisor', 'manager'].includes(role)) {
+      errors.push(`Row ${i + 2}: invalid role "${role}" (must be lifeguard, supervisor, or manager) — skipped`)
       continue
     }
 
@@ -127,7 +127,7 @@ export async function bulkCreateUsers(
   facilityId: string
 ): Promise<BulkCreateResult> {
   const { profile } = await requireUserForAction()
-  if (profile.role !== 'director' || profile.facility_id !== facilityId) {
+  if (!isManager(profile.role) || profile.facility_id !== facilityId) {
     throw new Error('Unauthorized')
   }
 

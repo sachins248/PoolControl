@@ -1,6 +1,25 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { coachingPointsRatelimit } from '@/lib/rate-limit'
+
+const coachingPointsSchema = z.object({
+  failed_criteria: z.array(z.object({
+    criterion_id: z.string().max(100),
+    criterion_label: z.string().max(300),
+    result: z.enum(['fail', 'needs_attention']),
+  })).min(1).max(30),
+  cert_body: z.string().max(50),
+  lifeguard_name: z.string().max(100),
+  audit_type: z.string().max(50).optional(),
+  criteria_definitions: z.array(z.object({
+    id: z.string().max(100),
+    what_to_look_for: z.array(z.string().max(500)),
+    common_failures: z.array(z.string().max(500)),
+    liability_weight: z.string().max(50),
+  })).optional(),
+})
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -17,20 +36,17 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { failed_criteria, cert_body, lifeguard_name, criteria_definitions } = await req.json()
+  const { success } = await coachingPointsRatelimit.limit(user.id)
+  if (!success) return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 })
 
-  if (!failed_criteria || failed_criteria.length === 0) {
-    return NextResponse.json([])
-  }
+  const parsed = coachingPointsSchema.safeParse(await req.json())
+  if (!parsed.success) return NextResponse.json({ error: 'Bad Request' }, { status: 400 })
+  const { failed_criteria, cert_body, lifeguard_name, criteria_definitions } = parsed.data
 
   const certName = CERT_BODY_NAMES[cert_body] ?? cert_body
 
-  // Build context for each failed criterion
-  type FailedCriterion = { criterion_id: string; criterion_label: string; result: string }
-  type CriterionDef = { id: string; what_to_look_for: string[]; common_failures: string[]; liability_weight: string }
-
-  const failedDetails = (failed_criteria as FailedCriterion[]).map((r) => {
-    const def = (criteria_definitions as CriterionDef[])?.find((c) => c.id === r.criterion_id)
+  const failedDetails = failed_criteria.map((r) => {
+    const def = criteria_definitions?.find((c) => c.id === r.criterion_id)
     return {
       label: r.criterion_label,
       result: r.result,

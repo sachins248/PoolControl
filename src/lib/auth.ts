@@ -89,8 +89,14 @@ export function roleHomePage(role: string): string {
   const map: Record<string, string> = {
     lifeguard: '/my-profile',
     supervisor: '/schedule',
+    manager: '/schedule',
     director: '/schedule',
     corporate: '/dashboard',
   }
   return map[role] ?? '/schedule'
+}
+
+/** Returns true for manager role (and legacy director). */
+export function isManager(role: string): boolean {
+  return role === 'manager' || role === 'director'
 }

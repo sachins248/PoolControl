@@ -12,6 +12,8 @@ import {
   Settings,
   LogOut,
   User,
+  GraduationCap,
+  CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -27,15 +29,15 @@ interface NavItem {
 }
 
 const ALL_NAV_ITEMS: NavItem[] = [
-  // Corporate / multi-facility overview
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['corporate'] },
+  { href: '/dashboard', label: 'Home', icon: LayoutDashboard, roles: ['supervisor', 'manager', 'director', 'corporate'] },
 
   // Supervisor + Director
-  { href: '/schedule', label: 'Daily Schedule', icon: CalendarDays, roles: ['supervisor', 'director'] },
-  { href: '/roster', label: 'Roster', icon: Users, roles: ['supervisor', 'director'] },
-  { href: '/audits/new', label: 'New Audit', icon: Plus, accent: true, roles: ['supervisor', 'director'] },
-  { href: '/remediation', label: 'Remediation', icon: AlertTriangle, roles: ['supervisor', 'director'] },
-  { href: '/team', label: 'Team Analysis', icon: BarChart3, roles: ['supervisor', 'director'] },
+  { href: '/schedule', label: 'Daily Schedule', icon: CalendarDays, roles: ['supervisor', 'manager', 'director'] },
+  { href: '/roster', label: 'Roster', icon: Users, roles: ['supervisor', 'manager', 'director'] },
+  { href: '/audits/new', label: 'New Audit', icon: Plus, accent: true, roles: ['supervisor', 'manager', 'director'] },
+  { href: '/remediation', label: 'Remediation', icon: AlertTriangle, roles: ['supervisor', 'manager', 'director'] },
+  { href: '/team', label: 'Team Analysis', icon: BarChart3, roles: ['supervisor', 'manager', 'director'] },
+  { href: '/training', label: 'Training Plans', icon: GraduationCap, roles: ['supervisor', 'manager', 'director'] },
 
   // Lifeguard self-service
   { href: '/my-profile', label: 'My Profile', icon: User, roles: ['lifeguard'] },
@@ -45,9 +47,11 @@ interface SidebarProps {
   facilityName?: string
   userRole: UserRole
   userName?: string
+  plan?: string
+  trialDaysLeft?: number | null
 }
 
-export function Sidebar({ facilityName = 'Aquatics Command Center', userRole, userName }: SidebarProps) {
+export function Sidebar({ facilityName = 'Aquatics Command Center', userRole, userName, plan = 'trial', trialDaysLeft }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -107,19 +111,50 @@ export function Sidebar({ facilityName = 'Aquatics Command Center', userRole, us
 
       {/* Footer */}
       <div className="border-t border-white/10 px-3 py-3 space-y-0.5">
-        {userRole === 'director' && (
-          <Link
-            href="/settings"
-            className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-              pathname === '/settings'
-                ? 'bg-white/10 text-white'
-                : 'text-white/60 hover:bg-white/5 hover:text-white/90'
-            )}
-          >
-            <Settings className="w-4 h-4" />
-            Settings
-          </Link>
+        {(userRole === 'manager' || userRole === 'director') && (
+          <>
+            <Link
+              href="/billing"
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                pathname === '/billing'
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/60 hover:bg-white/5 hover:text-white/90'
+              )}
+            >
+              <CreditCard className="w-4 h-4 shrink-0" />
+              <span className="flex-1">Billing</span>
+              {plan === 'trial' && trialDaysLeft != null && (
+                <span className={cn(
+                  'text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
+                  (trialDaysLeft as number) <= 3
+                    ? 'bg-red-500/20 text-red-400'
+                    : (trialDaysLeft as number) <= 7
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'bg-white/10 text-white/50'
+                )}>
+                  {trialDaysLeft}d left
+                </span>
+              )}
+              {plan !== 'trial' && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                  Active
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/settings"
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                pathname === '/settings'
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/60 hover:bg-white/5 hover:text-white/90'
+              )}
+            >
+              <Settings className="w-4 h-4" />
+              Settings
+            </Link>
+          </>
         )}
         <button
           onClick={handleSignOut}

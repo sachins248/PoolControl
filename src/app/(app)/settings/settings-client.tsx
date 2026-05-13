@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
-import { Users, Upload, UserPlus, Trash2, CheckCircle, AlertCircle, X, Loader2 } from 'lucide-react'
-import { addStaffMember, removeStaffMember } from './actions'
+import { Users, Upload, UserPlus, Trash2, CheckCircle, AlertCircle, X, Loader2, Bell } from 'lucide-react'
+import { addStaffMember, removeStaffMember, saveWebhookSettings } from './actions'
 import { parseAndPreviewCSV, bulkCreateUsers } from './upload-action'
 import type { UserProfile } from '@/types'
 import type { CSVRow } from './upload-action'
@@ -17,12 +17,14 @@ interface Props {
 const ROLE_LABELS: Record<string, string> = {
   lifeguard: 'Lifeguard',
   supervisor: 'Supervisor',
-  director: 'Director',
+  manager: 'Manager',
+  director: 'Manager',
 }
 
 const ROLE_COLORS: Record<string, string> = {
   lifeguard: 'bg-blue-100 text-blue-700',
   supervisor: 'bg-amber-100 text-amber-700',
+  manager: 'bg-purple-100 text-purple-700',
   director: 'bg-purple-100 text-purple-700',
 }
 
@@ -39,11 +41,17 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
 }
 
 export function SettingsClient({ facility, staff, facilityId, currentUserId }: Props) {
-  const [tab, setTab] = useState<'roster' | 'upload'>('roster')
+  const [tab, setTab] = useState<'roster' | 'upload' | 'notifications'>('roster')
   const [showAddForm, setShowAddForm] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isPending, startTransition] = useTransition()
   const [removingId, setRemovingId] = useState<string | null>(null)
+
+  // Webhook state
+  const config = (facility?.config ?? {}) as Record<string, string>
+  const [slackUrl, setSlackUrl] = useState(config.slack_webhook_url ?? '')
+  const [teamsUrl, setTeamsUrl] = useState(config.teams_webhook_url ?? '')
+  const [webhookPending, startWebhookTransition] = useTransition()
 
   // CSV state
   const [csvRows, setCSVRows] = useState<CSVRow[]>([])
@@ -83,6 +91,18 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId }: P
     } finally {
       setRemovingId(null)
     }
+  }
+
+  async function handleSaveWebhooks(e: React.FormEvent) {
+    e.preventDefault()
+    startWebhookTransition(async () => {
+      try {
+        await saveWebhookSettings(slackUrl, teamsUrl)
+        showToast('Notification settings saved.', 'success')
+      } catch (err: any) {
+        showToast(err.message ?? 'Failed to save settings.', 'error')
+      }
+    })
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -131,21 +151,21 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId }: P
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-gray-200">
-        {(['roster', 'upload'] as const).map((t) => (
+        {[
+          { key: 'roster', label: 'Roster', icon: <Users className="w-4 h-4" /> },
+          { key: 'upload', label: 'Bulk Upload', icon: <Upload className="w-4 h-4" /> },
+          { key: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
+        ].map(({ key, label, icon }) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={key}
+            onClick={() => setTab(key as any)}
             className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
-              tab === t
+              tab === key
                 ? 'border-emerald-500 text-emerald-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t === 'roster' ? (
-              <span className="flex items-center gap-2"><Users className="w-4 h-4" />Roster</span>
-            ) : (
-              <span className="flex items-center gap-2"><Upload className="w-4 h-4" />Bulk Upload</span>
-            )}
+            <span className="flex items-center gap-2">{icon}{label}</span>
           </button>
         ))}
       </div>
@@ -198,7 +218,7 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId }: P
                     <option value="">Select role...</option>
                     <option value="lifeguard">Lifeguard</option>
                     <option value="supervisor">Supervisor</option>
-                    <option value="director">Director</option>
+                    <option value="manager">Manager</option>
                   </select>
                 </div>
                 <div>
@@ -230,48 +250,71 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId }: P
             </form>
           )}
 
-          {/* Staff table */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Name</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Email</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Role</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Hire Date</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {staff.map((member, i) => (
-                  <tr key={member.id} className={`border-b border-gray-50 last:border-0 ${i % 2 === 0 ? '' : 'bg-gray-50/40'}`}>
-                    <td className="px-5 py-3 font-medium text-gray-900">{member.name}</td>
-                    <td className="px-5 py-3 text-gray-500">{member.email}</td>
-                    <td className="px-5 py-3">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${ROLE_COLORS[member.role] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {ROLE_LABELS[member.role] ?? member.role}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-gray-500">
-                      {member.hire_date ? new Date(member.hire_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      {member.id !== currentUserId && (
-                        <button
-                          onClick={() => handleRemove(member.id, member.name)}
-                          disabled={removingId === member.id}
-                          className="p-1.5 text-gray-400 hover:text-red-500 disabled:opacity-40 transition-colors rounded"
-                          title="Remove from roster"
-                        >
-                          {removingId === member.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+          {/* Staff grouped by role hierarchy */}
+          {(() => {
+            const managers = staff.filter((s) => ['manager', 'director'].includes(s.role))
+            const supervisors = staff.filter((s) => s.role === 'supervisor')
+            const lifeguards = staff.filter((s) => s.role === 'lifeguard')
+
+            const groups = [
+              { label: 'Managers', members: managers },
+              { label: 'Supervisors', members: supervisors },
+              { label: 'Lifeguards', members: lifeguards },
+            ].filter((g) => g.members.length > 0)
+
+            return (
+              <div className="space-y-5">
+                {groups.map(({ label, members }) => (
+                  <div key={label}>
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                      {label} ({members.length})
+                    </h3>
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-100 bg-gray-50">
+                            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Name</th>
+                            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Email</th>
+                            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Role</th>
+                            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Hire Date</th>
+                            <th className="px-5 py-3" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {members.map((member, i) => (
+                            <tr key={member.id} className={`border-b border-gray-50 last:border-0 ${i % 2 === 0 ? '' : 'bg-gray-50/40'}`}>
+                              <td className="px-5 py-3 font-medium text-gray-900">{member.name}</td>
+                              <td className="px-5 py-3 text-gray-500">{member.email}</td>
+                              <td className="px-5 py-3">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${ROLE_COLORS[member.role] ?? 'bg-gray-100 text-gray-600'}`}>
+                                  {ROLE_LABELS[member.role] ?? member.role}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3 text-gray-500">
+                                {member.hire_date ? new Date(member.hire_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                              </td>
+                              <td className="px-5 py-3 text-right">
+                                {member.id !== currentUserId && (
+                                  <button
+                                    onClick={() => handleRemove(member.id, member.name)}
+                                    disabled={removingId === member.id}
+                                    className="p-1.5 text-gray-400 hover:text-red-500 disabled:opacity-40 transition-colors rounded"
+                                    title="Remove from roster"
+                                  >
+                                    {removingId === member.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 
@@ -355,6 +398,80 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId }: P
           {csvParsed && csvRows.length === 0 && csvErrors.length === 0 && (
             <p className="text-sm text-gray-500 text-center py-8">No valid rows found in file.</p>
           )}
+        </div>
+      )}
+
+      {/* Notifications Tab */}
+      {tab === 'notifications' && (
+        <div className="max-w-xl space-y-6">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Audit Failure Alerts</h2>
+            <p className="text-sm text-gray-500">
+              When a lifeguard fails an audit, PoolControl will send an instant notification to your team channel with the guard&apos;s info, score, and failed criteria.
+            </p>
+          </div>
+
+          <form onSubmit={handleSaveWebhooks} className="space-y-5">
+            {/* Slack */}
+            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-[#4A154B] rounded flex items-center justify-center">
+                  <span className="text-white text-[10px] font-bold">#</span>
+                </div>
+                <span className="font-medium text-sm text-gray-900">Slack</span>
+                {slackUrl && <span className="ml-auto text-[10px] font-medium px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">Connected</span>}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Incoming Webhook URL</label>
+                <input
+                  type="url"
+                  value={slackUrl}
+                  onChange={(e) => setSlackUrl(e.target.value)}
+                  placeholder="https://hooks.slack.com/services/..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 font-mono"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Create one at <span className="font-medium">api.slack.com/apps</span> → Incoming Webhooks
+                </p>
+              </div>
+            </div>
+
+            {/* Teams */}
+            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-[#5059C9] rounded flex items-center justify-center">
+                  <span className="text-white text-[10px] font-bold">T</span>
+                </div>
+                <span className="font-medium text-sm text-gray-900">Microsoft Teams</span>
+                {teamsUrl && <span className="ml-auto text-[10px] font-medium px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">Connected</span>}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Incoming Webhook URL</label>
+                <input
+                  type="url"
+                  value={teamsUrl}
+                  onChange={(e) => setTeamsUrl(e.target.value)}
+                  placeholder="https://outlook.office.com/webhook/..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 font-mono"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Add via <span className="font-medium">Apps → Incoming Webhook</span> in your Teams channel
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-xs text-gray-400">Notifications fire automatically on every failed audit submission.</p>
+              <button
+                type="submit"
+                disabled={webhookPending}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                {webhookPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                {webhookPending ? 'Saving...' : 'Save Settings'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

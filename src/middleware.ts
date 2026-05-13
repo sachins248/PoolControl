@@ -40,6 +40,33 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  // Trial expiry enforcement — redirect expired trial facilities to /billing
+  const isBillingRoute = pathname === '/billing'
+  const isPublicRoute = isAuthRoute || isApiRoute || isBillingRoute
+  if (user && !isPublicRoute) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('facility_id')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.facility_id) {
+      const { data: facility } = await supabase
+        .from('facilities')
+        .select('plan, trial_ends_at')
+        .eq('id', profile.facility_id)
+        .single()
+
+      if (
+        facility?.plan === 'trial' &&
+        facility.trial_ends_at &&
+        new Date(facility.trial_ends_at) < new Date()
+      ) {
+        return NextResponse.redirect(new URL('/billing', request.url))
+      }
+    }
+  }
+
   return supabaseResponse
 }
 

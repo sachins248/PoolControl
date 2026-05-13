@@ -1,8 +1,8 @@
-import { requireUser } from '@/lib/auth'
+import { requireUser, isManager } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Plus, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { ArrowLeft, Plus, CheckCircle, XCircle, Clock, FileText } from 'lucide-react'
 import { LifeguardAvatar } from '@/components/shared/lifeguard-avatar'
 import type { Audit, RemediationTask } from '@/types'
 
@@ -90,6 +90,14 @@ export default async function RosterMemberPage({ params }: { params: { id: strin
                 <p className="text-xs text-gray-400">out of 5.0</p>
               </div>
             </div>
+          )}
+          {isManager(profile.role) && (
+            <Link
+              href={`/roster/${member.id}/report`}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <FileText className="w-4 h-4" /> Generate Report
+            </Link>
           )}
           {member.role === 'lifeguard' && (
             <Link

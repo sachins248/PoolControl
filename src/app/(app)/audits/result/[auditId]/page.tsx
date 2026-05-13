@@ -5,7 +5,7 @@ import { cookies } from 'next/headers'
 import { AuditResultClient } from './audit-result-client'
 
 export default async function AuditResultPage({ params }: { params: { auditId: string } }) {
-  const profile = await requireUser()
+  await requireUser()
   const supabase = createClient()
 
   // RLS on audits ensures users only see audits they're allowed to see:
@@ -76,6 +76,16 @@ export default async function AuditResultPage({ params }: { params: { auditId: s
     } catch {
       // not blocking
     }
+
+    // Fallback: if the AI call failed or returned empty, build coaching points from criteria labels
+    if (coachingPoints.length === 0) {
+      coachingPoints = failedCriteria.map((r: any) => ({
+        title: r.criterion_label,
+        description: r.result === 'fail'
+          ? 'This criterion was marked as a failure. Review the standard technique and expectations with the lifeguard before their next shift.'
+          : 'This criterion needs attention. Discuss proper technique and what "meeting standard" looks like with the lifeguard.',
+      }))
+    }
   }
 
   return (
@@ -88,7 +98,7 @@ export default async function AuditResultPage({ params }: { params: { auditId: s
       remediationTask={remediationTask}
       hotSeatQueue={hotSeatQueue ?? []}
       coachingPoints={coachingPoints}
-      supervisorId={profile.id}
+
     />
   )
 }

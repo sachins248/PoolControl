@@ -1,7 +1,8 @@
 import { requireUser } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
+import { getDailySchedule } from '@/lib/schedule'
 import Link from 'next/link'
-import { CalendarDays, AlertTriangle, Users, BarChart3 } from 'lucide-react'
+import { CalendarDays, AlertTriangle, Users, BarChart3, ChevronRight } from 'lucide-react'
 
 export default async function DashboardPage() {
   const profile = await requireUser()
@@ -14,14 +15,16 @@ export default async function DashboardPage() {
     { count: lifeguardCount },
     { count: openRemediations },
     { count: auditsThisMonth },
+    schedule,
   ] = await Promise.all([
     supabase.from('user_profiles').select('*', { count: 'exact', head: true })
-      .eq('facility_id', facilityId).eq('role', 'lifeguard'),
+      .eq('facility_id', facilityId).eq('role', 'lifeguard').eq('is_active', true),
     supabase.from('remediation_tasks').select('*', { count: 'exact', head: true })
       .eq('facility_id', facilityId).in('status', ['assigned', 'acknowledged', 'in_deck']),
     supabase.from('audits').select('*', { count: 'exact', head: true })
       .eq('facility_id', facilityId)
       .gte('submitted_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
+    getDailySchedule(facilityId, supabase),
   ])
 
   const stats = [
@@ -31,12 +34,15 @@ export default async function DashboardPage() {
     { label: 'Team Analysis', value: '→', icon: BarChart3, href: '/team', color: 'text-purple-600 bg-purple-50' },
   ]
 
+  const priorityGuards = schedule.rows.filter((r) => r.priority === 'HIGH' || r.priority === 'MED')
+
   return (
     <div className="px-8 py-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Dashboard</h1>
       <p className="text-gray-500 text-sm mb-6">Welcome back, {profile.name?.split(' ')[0]}</p>
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      {/* Stat cards */}
+      <div className="grid grid-cols-4 gap-4 mb-6">
         {stats.map((s) => {
           const Icon = s.icon
           return (
@@ -51,6 +57,64 @@ export default async function DashboardPage() {
         })}
       </div>
 
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {/* Today's audit summary */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-3">Today</p>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">Overdue</span>
+              <span className={`text-sm font-bold ${schedule.overdue > 0 ? 'text-red-600' : 'text-gray-400'}`}>{schedule.overdue}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">Due today</span>
+              <span className={`text-sm font-bold ${schedule.due_today > 0 ? 'text-amber-600' : 'text-gray-400'}`}>{schedule.due_today}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">Completed</span>
+              <span className={`text-sm font-bold ${schedule.done > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>{schedule.done}</span>
+            </div>
+          </div>
+          <Link href="/schedule" className="mt-4 flex items-center gap-1 text-xs text-emerald-600 font-medium hover:text-emerald-700">
+            Open schedule <ChevronRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        {/* Priority audits */}
+        <div className="col-span-2 bg-white border border-gray-200 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">Needs Attention Today</p>
+            <Link href="/schedule" className="text-xs text-emerald-600 font-medium hover:text-emerald-700">View all</Link>
+          </div>
+          {priorityGuards.length === 0 ? (
+            <div className="flex items-center justify-center h-16 text-sm text-gray-400">
+              All guards are on track ✓
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {priorityGuards.slice(0, 4).map((row) => (
+                <div key={row.lifeguard.id} className="flex items-center gap-3">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-16 text-center flex-shrink-0 ${
+                    row.priority === 'HIGH'
+                      ? 'bg-red-50 text-red-600'
+                      : 'bg-amber-50 text-amber-600'
+                  }`}>
+                    {row.priority}
+                  </span>
+                  <span className="text-sm text-gray-800 font-medium flex-1 truncate">{row.lifeguard.name}</span>
+                  <span className="text-xs text-gray-400">{row.overdue_count} overdue</span>
+                  <Link href="/schedule" className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">Audit →</Link>
+                </div>
+              ))}
+              {priorityGuards.length > 4 && (
+                <p className="text-xs text-gray-400 pt-1">+{priorityGuards.length - 4} more in schedule</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Quick actions */}
       <div className="grid grid-cols-2 gap-4">
         <Link href="/schedule" className="bg-[#0f1e2e] text-white rounded-xl p-6 hover:opacity-90 transition-opacity">
           <CalendarDays className="w-6 h-6 text-emerald-400 mb-3" />

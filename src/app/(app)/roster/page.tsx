@@ -16,7 +16,8 @@ function computeLPR(audits: Audit[]): number | null {
 const ROLE_LABELS: Record<string, string> = {
   lifeguard: 'Lifeguard',
   supervisor: 'Supervisor',
-  director: 'Director',
+  manager: 'Manager',
+  director: 'Manager',
 }
 
 const LPR_COLOR = (lpr: number | null) => {
@@ -37,6 +38,7 @@ export default async function RosterPage() {
     .from('user_profiles')
     .select('*')
     .eq('facility_id', profile.facility_id)
+    .eq('is_active', true)
     .order('name')
 
   // Fetch recent audits for all staff to compute LPR
@@ -65,6 +67,14 @@ export default async function RosterPage() {
   for (const r of remediations ?? []) {
     remByGuard[r.lifeguard_id] = (remByGuard[r.lifeguard_id] ?? 0) + 1
   }
+
+  // Fetch inactive staff so managers can still access their audit history
+  const { data: formerStaff } = await supabase
+    .from('user_profiles')
+    .select('id, name, role, hire_date, avatar_color')
+    .eq('facility_id', profile.facility_id)
+    .eq('is_active', false)
+    .order('name')
 
   const lifeguards = (staff ?? []).filter((s) => s.role === 'lifeguard') as UserProfile[]
   const supervisors = (staff ?? []).filter((s) => s.role !== 'lifeguard') as UserProfile[]
@@ -163,9 +173,53 @@ export default async function RosterPage() {
       {supervisors.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Supervisors & Directors ({supervisors.length})
+            Supervisors & Managers ({supervisors.length})
           </h2>
           <StaffTable members={supervisors} showAudit={false} />
+        </section>
+      )}
+
+      {(formerStaff ?? []).length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+            Former Staff ({(formerStaff ?? []).length})
+          </h2>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Name</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Role</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Hire Date</th>
+                  <th className="px-5 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {(formerStaff ?? []).map((member, i) => (
+                  <tr key={member.id} className={`border-b border-gray-50 last:border-0 ${i % 2 === 0 ? '' : 'bg-gray-50/40'}`}>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <LifeguardAvatar name={member.name} avatarColor={member.avatar_color} size="sm" />
+                        <Link href={`/roster/${member.id}`} className="font-medium text-gray-500 hover:text-emerald-600 transition-colors">
+                          {member.name}
+                        </Link>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded">Inactive</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-gray-400">{ROLE_LABELS[member.role] ?? member.role}</td>
+                    <td className="px-5 py-3 text-gray-400">
+                      {member.hire_date ? new Date(member.hire_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <Link href={`/roster/${member.id}`} className="text-xs text-gray-400 hover:text-emerald-600 font-medium transition-colors">
+                        View History
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
     </div>
