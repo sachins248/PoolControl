@@ -12,7 +12,7 @@ export default async function RootPage() {
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -371,7 +371,7 @@ export default async function RootPage() {
           .footer-links { justify-content: center; }
           .cta-band { padding: 56px 20px; }
         }
-      `}</style>
+      ` }} />
 
       <ScrollReveal />
 
