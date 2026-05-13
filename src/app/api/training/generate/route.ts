@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { trainingRatelimit } from '@/lib/rate-limit'
 
@@ -15,7 +15,7 @@ const AUDIT_TYPE_LABELS: Record<string, string> = {
   cleaning: 'Cleaning Protocol',
 }
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

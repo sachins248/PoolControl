@@ -84,9 +84,6 @@ function buildTeamsPayload(p: AuditFailurePayload): object {
   }
 }
 
-function isTeamsUrl(url: string): boolean {
-  return url.includes('outlook.office.com') || url.includes('webhook.office.com') || url.includes('office365.com')
-}
 
 export async function sendAuditFailureWebhooks(
   webhookUrls: { slack?: string | null; teams?: string | null },

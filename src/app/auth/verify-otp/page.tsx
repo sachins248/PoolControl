@@ -1,7 +1,6 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
+import { Suspense } from 'react'
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -9,7 +8,7 @@ import { Waves } from 'lucide-react'
 
 type PageState = 'entering' | 'verifying' | 'error'
 
-export default function VerifyOTPPage() {
+function VerifyOTPContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const email = searchParams.get('email') ?? ''
@@ -180,4 +179,8 @@ export default function VerifyOTPPage() {
       </div>
     </div>
   )
+}
+
+export default function VerifyOTPPage() {
+  return <Suspense><VerifyOTPContent /></Suspense>
 }

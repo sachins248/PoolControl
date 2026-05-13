@@ -1,7 +1,6 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
+import { Suspense } from 'react'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -9,7 +8,7 @@ import { Waves, Eye, EyeOff, CheckCircle, XCircle, Link2Off } from 'lucide-react
 
 type PageState = 'verifying' | 'ready' | 'expired'
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const [pageState, setPageState] = useState<PageState>('verifying')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -197,4 +196,8 @@ export default function ResetPasswordPage() {
       </div>
     </div>
   )
+}
+
+export default function ResetPasswordPage() {
+  return <Suspense><ResetPasswordContent /></Suspense>
 }

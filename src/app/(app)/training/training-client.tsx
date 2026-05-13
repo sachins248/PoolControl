@@ -32,7 +32,7 @@ interface Props {
   userRole: UserRole
 }
 
-export function TrainingClient({ initialSessions, userRole }: Props) {
+export function TrainingClient({ initialSessions }: Props) {
   const [sessions, setSessions] = useState<TrainingSession[]>(initialSessions)
   const [generating, setGenerating] = useState(false)
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null)

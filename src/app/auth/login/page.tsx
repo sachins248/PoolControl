@@ -1,7 +1,6 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
+import { Suspense } from 'react'
 import { useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -9,7 +8,7 @@ import { Eye, EyeOff, Waves, Mail } from 'lucide-react'
 
 type Mode = 'login' | 'otp_request' | 'forgot' | 'forgot_sent'
 
-export default function LoginPage() {
+function LoginContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -310,4 +309,8 @@ export default function LoginPage() {
       </div>
     </div>
   )
+}
+
+export default function LoginPage() {
+  return <Suspense><LoginContent /></Suspense>
 }
