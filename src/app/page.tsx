@@ -1,5 +1,6 @@
 import { getServerUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import ScrollReveal from '@/components/scroll-reveal'
 
 export default async function RootPage() {
   const profile = await getServerUser()
@@ -372,15 +373,7 @@ export default async function RootPage() {
         }
       `}</style>
 
-      {/* ── IntersectionObserver ── */}
-      <script dangerouslySetInnerHTML={{ __html: `
-        document.addEventListener('DOMContentLoaded', function() {
-          var io = new IntersectionObserver(function(entries) {
-            entries.forEach(function(e) { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
-          }, { threshold: 0.12 });
-          document.querySelectorAll('.reveal').forEach(function(el) { io.observe(el); });
-        });
-      ` }} />
+      <ScrollReveal />
 
       {/* ── Nav ── */}
       <nav className="nav">
