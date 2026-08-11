@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { coachingPointsRatelimit } from '@/lib/rate-limit'
+import { checkLimit, coachingPointsRatelimit } from '@/lib/rate-limit'
 
 const coachingPointsSchema = z.object({
   failed_criteria: z.array(z.object({
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { success } = await coachingPointsRatelimit.limit(user.id)
+  const { success } = await checkLimit(coachingPointsRatelimit, user.id)
   if (!success) return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 })
 
   const parsed = coachingPointsSchema.safeParse(await req.json())

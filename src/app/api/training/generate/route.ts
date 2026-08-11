@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { trainingRatelimit } from '@/lib/rate-limit'
+import { checkLimit, trainingRatelimit } from '@/lib/rate-limit'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -33,7 +33,7 @@ export async function POST() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { success } = await trainingRatelimit.limit(user.id)
+  const { success } = await checkLimit(trainingRatelimit, user.id)
   if (!success) return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 })
 
   const facilityId = profile.facility_id

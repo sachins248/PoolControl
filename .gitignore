@@ -38,3 +38,6 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# local scratch
+poolcontrol_chat_export.txt
