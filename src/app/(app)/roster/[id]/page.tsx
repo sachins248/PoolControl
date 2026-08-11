@@ -2,10 +2,14 @@ import { requireUser, isManager } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Plus, CheckCircle, XCircle, Clock, FileText } from 'lucide-react'
+import { ArrowLeft, Plus, CheckCircle, XCircle, Clock, FileText, Zap } from 'lucide-react'
 import { LifeguardAvatar } from '@/components/shared/lifeguard-avatar'
 import { AuditLogDownload } from './audit-log-download'
-import type { Audit, RemediationTask } from '@/types'
+import { CadenceEditor } from './cadence-editor'
+import { getEffectiveCadence } from '@/lib/schedule'
+import type { Audit, AuditTypeName, RemediationTask } from '@/types'
+
+const CORE_TYPES: AuditTypeName[] = ['scanning', 'vat', 'cpr_skills', 'dispatch']
 
 function computeLPR(audits: Audit[]): number {
   const completed = audits.filter((a) => a.passed !== null)
@@ -40,7 +44,7 @@ export default async function RosterMemberPage({ params }: { params: { id: strin
 
   if (!member) notFound()
 
-  const [{ data: audits }, { data: remediations }] = await Promise.all([
+  const [{ data: audits }, { data: remediations }, { data: facility }] = await Promise.all([
     supabase
       .from('audits')
       .select('*')
@@ -53,7 +57,44 @@ export default async function RosterMemberPage({ params }: { params: { id: strin
       .select('*')
       .eq('lifeguard_id', params.id)
       .order('deadline', { ascending: true }),
+    supabase
+      .from('facilities')
+      .select('config')
+      .eq('id', profile.facility_id)
+      .single(),
   ])
+
+  const facilityCadence = (facility?.config?.audit_cadence ?? {}) as Record<AuditTypeName, number>
+
+  // Per-type performance + schedule (audits are already newest-first)
+  const typeCards = CORE_TYPES.map((type) => {
+    const typeAudits = ((audits ?? []) as Audit[]).filter(
+      (a) => a.audit_type_name === type && a.passed !== null,
+    )
+    const latest = typeAudits[0] ?? null
+    const avgScore = typeAudits.length > 0
+      ? typeAudits.reduce((s, a) => s + (a.score ?? 0), 0) / typeAudits.length
+      : null
+    const passRate = typeAudits.length > 0
+      ? typeAudits.filter((a) => a.passed).length / typeAudits.length
+      : null
+
+    const cadence = getEffectiveCadence(
+      type,
+      facilityCadence,
+      member.audit_cadence_override,
+      latest != null && latest.passed === false,
+    )
+
+    let daysAgo: number | null = null
+    let dueInDays: number | null = null
+    if (latest?.submitted_at) {
+      daysAgo = Math.floor((Date.now() - new Date(latest.submitted_at).getTime()) / 86400000)
+      dueInDays = cadence.days - daysAgo
+    }
+
+    return { type, count: typeAudits.length, avgScore, passRate, latest, cadence, daysAgo, dueInDays }
+  })
 
   const lpr = computeLPR((audits ?? []) as Audit[])
   const openRem = (remediations ?? []).filter((r) => ['assigned', 'acknowledged', 'in_deck'].includes(r.status))
@@ -110,6 +151,96 @@ export default async function RosterMemberPage({ params }: { params: { id: strin
           )}
         </div>
       </div>
+
+      {/* Per-type performance */}
+      {member.role === 'lifeguard' && (
+        <section>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            Performance by Audit Type
+          </h2>
+          <div className="grid grid-cols-4 gap-3">
+            {typeCards.map((c) => {
+              const scoreColor = c.avgScore === null ? 'text-gray-400'
+                : c.avgScore >= 4 ? 'text-emerald-600'
+                : c.avgScore >= 3 ? 'text-amber-500' : 'text-red-500'
+              return (
+                <div key={c.type} className="bg-white border border-gray-200 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                    {AUDIT_DISPLAY[c.type]}
+                  </p>
+                  <p className={`text-2xl font-bold mt-2 ${scoreColor}`}>
+                    {c.avgScore !== null ? c.avgScore.toFixed(1) : '—'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {c.count > 0
+                      ? `${Math.round((c.passRate ?? 0) * 100)}% pass · ${c.count} audit${c.count !== 1 ? 's' : ''}`
+                      : 'No audits yet'}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Audit schedule */}
+      {member.role === 'lifeguard' && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              Audit Schedule
+            </h2>
+            {isManager(profile.role) && (
+              <CadenceEditor
+                lifeguardId={member.id}
+                facilityCadence={facilityCadence}
+                override={member.audit_cadence_override ?? null}
+              />
+            )}
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            {typeCards.map((c, i) => {
+              const overdue = c.dueInDays !== null ? c.dueInDays < 0 : c.count === 0
+              const dueSoon = c.dueInDays !== null && c.dueInDays >= 0 && c.dueInDays <= 1
+              const statusLabel = c.count === 0 && c.daysAgo === null
+                ? 'NEVER AUDITED — DUE NOW'
+                : overdue ? `OVERDUE BY ${Math.abs(c.dueInDays!)}D`
+                : dueSoon ? 'DUE TODAY'
+                : `DUE IN ${c.dueInDays}D`
+              const statusColor = overdue ? 'text-red-500' : dueSoon ? 'text-amber-500' : 'text-gray-400'
+              return (
+                <div key={c.type} className={`flex items-center gap-4 px-5 py-3 ${i > 0 ? 'border-t border-gray-100' : ''}`}>
+                  <span className="w-28 text-sm font-medium text-gray-900">{AUDIT_DISPLAY[c.type]}</span>
+                  <span className="text-xs text-gray-500">
+                    every <b className="text-gray-700">{c.cadence.days}d</b>
+                    {c.cadence.source === 'override' && (
+                      <span className="ml-1.5 text-[10px] font-semibold text-blue-600 uppercase">custom</span>
+                    )}
+                    {c.cadence.adaptive && (
+                      <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 uppercase">
+                        <Zap className="w-2.5 h-2.5" /> tightened after fail (base {c.cadence.base}d)
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-xs text-gray-400 ml-auto">
+                    {c.daysAgo !== null ? `last audited ${c.daysAgo}d ago` : 'no history'}
+                  </span>
+                  <span className={`text-xs font-bold w-40 text-right ${statusColor}`}>{statusLabel}</span>
+                  <Link
+                    href={`/audits/new?lifeguardId=${member.id}&auditType=${c.type}`}
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                  >
+                    Audit now →
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Frequency adapts automatically: a failed audit halves the interval for that type until the lifeguard passes again.
+          </p>
+        </section>
+      )}
 
       {/* Open Remediations */}
       {openRem.length > 0 && (

@@ -21,6 +21,28 @@ function getCellStatus(daysAgo: number | null, cadenceDays: number, completedTod
   return 'ok'
 }
 
+/**
+ * Effective audit cadence for one guard and one audit type.
+ *
+ * Resolution order:
+ *  1. Per-lifeguard override (user_profiles.audit_cadence_override) — set by managers.
+ *  2. Facility default (facilities.config.audit_cadence).
+ * Then the adaptive rule: if the guard's most recent audit of this type FAILED,
+ * the interval is halved (rounded up) — a guard with a demonstrated weakness is
+ * automatically audited more often on it until they pass again.
+ */
+export function getEffectiveCadence(
+  auditType: AuditTypeName,
+  facilityCadence: Record<AuditTypeName, number>,
+  override: Partial<Record<AuditTypeName, number>> | null | undefined,
+  latestFailed: boolean,
+): { days: number; base: number; source: 'override' | 'facility'; adaptive: boolean } {
+  const base = override?.[auditType] ?? facilityCadence[auditType] ?? 30
+  const source = override?.[auditType] != null ? 'override' : 'facility'
+  const days = latestFailed ? Math.max(1, Math.ceil(base / 2)) : base
+  return { days, base, source, adaptive: latestFailed }
+}
+
 function getPriority(overdueCount: number, recentFails: number): Priority {
   if (overdueCount >= 2 || recentFails >= 2) return 'HIGH'
   if (overdueCount === 1 || recentFails === 1) return 'MED'
@@ -129,7 +151,14 @@ export async function getDailySchedule(
         if (!latest.passed) guardFails++
       }
 
-      const status = getCellStatus(daysAgo, cadence[auditType] ?? 30, completedToday)
+      // Per-lifeguard override + adaptive tightening after a failed audit
+      const effective = getEffectiveCadence(
+        auditType,
+        cadence,
+        guard.audit_cadence_override,
+        latest != null && latest.passed === false,
+      )
+      const status = getCellStatus(daysAgo, effective.days, completedToday)
       if (status === 'overdue') { guardOverdue++; overdueCount++ }
       else if (status === 'due_today') dueCount++
       else if (status === 'done') doneCount++

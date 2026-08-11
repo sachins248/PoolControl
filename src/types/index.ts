@@ -59,6 +59,8 @@ export interface UserProfile {
   phone: string | null
   email: string
   created_at: string
+  /** Per-lifeguard audit frequency overrides (days). Falls back to facility cadence. */
+  audit_cadence_override?: Partial<Record<AuditTypeName, number>> | null
   // computed
   initials?: string
   avatar_color?: string
