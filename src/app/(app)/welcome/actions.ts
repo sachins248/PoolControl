@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation'
 function roleHomePage(role: string): string {
   if (role === 'lifeguard') return '/my-profile'
   if (role === 'corporate') return '/dashboard'
+  if (role === 'super_admin') return '/admin'
   return '/schedule'
 }
 

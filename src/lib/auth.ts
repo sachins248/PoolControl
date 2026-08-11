@@ -92,6 +92,7 @@ export function roleHomePage(role: string): string {
     manager: '/schedule',
     director: '/schedule',
     corporate: '/dashboard',
+    super_admin: '/admin',
   }
   return map[role] ?? '/schedule'
 }
@@ -99,4 +100,9 @@ export function roleHomePage(role: string): string {
 /** Returns true for manager role (and legacy director). */
 export function isManager(role: string): boolean {
   return role === 'manager' || role === 'director'
+}
+
+/** Returns true for super_admin role. */
+export function isSuperAdmin(role: string): boolean {
+  return role === 'super_admin'
 }

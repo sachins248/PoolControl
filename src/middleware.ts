@@ -47,11 +47,12 @@ export async function middleware(request: NextRequest) {
   if (user && !isPublicRoute) {
     const { data: profile } = await supabase
       .from('user_profiles')
-      .select('facility_id')
+      .select('facility_id, role')
       .eq('id', user.id)
       .single()
 
-    if (profile?.facility_id) {
+    // Super admins manage the platform itself — never gate them on a facility's trial clock
+    if (profile?.facility_id && profile.role !== 'super_admin') {
       const { data: facility } = await supabase
         .from('facilities')
         .select('plan, trial_ends_at')
