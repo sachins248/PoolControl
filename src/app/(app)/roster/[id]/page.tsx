@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Plus, CheckCircle, XCircle, Clock, FileText } from 'lucide-react'
 import { LifeguardAvatar } from '@/components/shared/lifeguard-avatar'
+import { AuditLogDownload } from './audit-log-download'
 import type { Audit, RemediationTask } from '@/types'
 
 function computeLPR(audits: Audit[]): number {
@@ -46,8 +47,7 @@ export default async function RosterMemberPage({ params }: { params: { id: strin
       .eq('lifeguard_id', params.id)
       .in('status', ['completed', 'remediated', 'closed'])
       .not('submitted_at', 'is', null)
-      .order('submitted_at', { ascending: false })
-      .limit(30),
+      .order('submitted_at', { ascending: false }),
     supabase
       .from('remediation_tasks')
       .select('*')
@@ -91,10 +91,11 @@ export default async function RosterMemberPage({ params }: { params: { id: strin
               </div>
             </div>
           )}
+          <AuditLogDownload memberName={member.name} audits={(audits ?? []) as Audit[]} />
           {isManager(profile.role) && (
             <Link
               href={`/roster/${member.id}/report`}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 border border-white/[0.10] text-white/70 hover:text-white hover:border-white/[0.20] text-sm font-medium rounded-lg transition-colors"
             >
               <FileText className="w-4 h-4" /> Generate Report
             </Link>

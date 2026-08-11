@@ -1,4 +1,4 @@
-export type UserRole = 'lifeguard' | 'supervisor' | 'manager' | 'director' | 'corporate'
+export type UserRole = 'lifeguard' | 'supervisor' | 'manager' | 'director' | 'corporate' | 'super_admin'
 
 export type CertBody =
   | 'ellis'

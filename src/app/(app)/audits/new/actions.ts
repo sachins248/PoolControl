@@ -38,6 +38,11 @@ export async function submitAudit(
   // Override audit_id on every criteria result — never trust the client-supplied value
   const safeResults = criteriaResults.map((r) => ({ ...r, audit_id: auditId }))
 
+  // Delete any orphaned criteria from a previous failed submit attempt before inserting.
+  // This can only exist if a prior submit inserted criteria but then failed to update the
+  // audit status. The delete makes submitAudit safe to retry without creating duplicates.
+  await supabase.from('audit_criteria_results').delete().eq('audit_id', auditId)
+
   const { error: criteriaError } = await supabase
     .from('audit_criteria_results')
     .insert(safeResults)

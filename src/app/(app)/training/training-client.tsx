@@ -6,18 +6,18 @@ import { saveTrainingSession, deleteTrainingSession } from './actions'
 import type { TrainingSession, LessonPlan, LessonStep, UserRole } from '@/types'
 
 const DRILL_TYPE_COLORS: Record<string, string> = {
-  briefing: 'bg-blue-50 text-blue-700 border-blue-100',
-  demonstration: 'bg-purple-50 text-purple-700 border-purple-100',
-  practice: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  scenario: 'bg-orange-50 text-orange-700 border-orange-100',
-  debrief: 'bg-gray-50 text-gray-600 border-gray-200',
-  assessment: 'bg-red-50 text-red-700 border-red-100',
+  briefing: 'bg-blue-500/[0.10] text-blue-400 border-blue-500/[0.20]',
+  demonstration: 'bg-purple-500/[0.10] text-purple-400 border-purple-500/[0.20]',
+  practice: 'bg-emerald-500/[0.10] text-emerald-400 border-emerald-500/[0.20]',
+  scenario: 'bg-orange-500/[0.10] text-orange-400 border-orange-500/[0.20]',
+  debrief: 'bg-white/[0.05] text-white/50 border-white/[0.10]',
+  assessment: 'bg-red-500/[0.10] text-red-400 border-red-500/[0.20]',
 }
 
 const PRIORITY_STYLES: Record<string, string> = {
-  High: 'bg-red-100 text-red-700',
-  Medium: 'bg-amber-100 text-amber-700',
-  Low: 'bg-emerald-100 text-emerald-700',
+  High: 'bg-red-500/[0.12] text-red-400',
+  Medium: 'bg-amber-500/[0.12] text-amber-400',
+  Low: 'bg-emerald-500/[0.12] text-emerald-400',
 }
 
 interface GeneratedPlan {
@@ -146,7 +146,7 @@ export function TrainingClient({ initialSessions }: Props) {
 
       {/* Generated plan preview */}
       {generatedPlan && (
-        <div className="border-2 border-emerald-200 bg-emerald-50/40 rounded-2xl overflow-hidden">
+        <div className="border border-emerald-500/[0.25] bg-emerald-500/[0.05] rounded-2xl overflow-hidden">
           {/* Preview header */}
           <div className="bg-emerald-500 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -181,7 +181,7 @@ export function TrainingClient({ initialSessions }: Props) {
             </div>
 
             {/* Save controls */}
-            <div className="flex items-center gap-3 pt-2 border-t border-emerald-100">
+            <div className="flex items-center gap-3 pt-2 border-t border-emerald-500/[0.15]">
               <div className="flex items-center gap-2">
                 <CalendarDays className="w-4 h-4 text-gray-400" />
                 <label className="text-xs font-medium text-gray-600">Schedule for:</label>
@@ -202,7 +202,7 @@ export function TrainingClient({ initialSessions }: Props) {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 px-5 py-2 bg-gray-900 hover:bg-gray-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors"
                 >
                   {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : 'Save to Training History'}
                 </button>
@@ -247,8 +247,8 @@ export function TrainingClient({ initialSessions }: Props) {
 function StepCard({ step }: { step: LessonStep }) {
   const colorClass = DRILL_TYPE_COLORS[step.drill_type] ?? 'bg-gray-50 text-gray-600 border-gray-200'
   return (
-    <div className="flex gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3">
-      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 mt-0.5">
+    <div className="flex gap-3 bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3">
+      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-white/[0.07] flex items-center justify-center text-xs font-bold text-gray-500 mt-0.5">
         {step.order}
       </div>
       <div className="flex-1 min-w-0">
@@ -286,7 +286,7 @@ function SessionCard({
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
       <div
-        className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
         onClick={onToggle}
       >
         <div className="flex-1 min-w-0">
@@ -323,9 +323,9 @@ function SessionCard({
       </div>
 
       {expanded && (
-        <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-3">
+        <div className="px-5 pb-5 border-t border-white/[0.06] pt-4 space-y-3">
           {session.why_this_topic && (
-            <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+            <p className="text-sm text-gray-600 bg-white/[0.03] rounded-lg px-4 py-3 border border-white/[0.06]">
               <span className="font-semibold text-gray-700">Why this topic: </span>
               {session.why_this_topic}
             </p>
