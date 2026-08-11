@@ -386,3 +386,68 @@
 @media (prefers-reduced-motion: reduce) {
   .app-root main > * { animation: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   LIABILITY REPORT — opt back out of the dark shell.
+   This page is a printed legal document: it must stay ink-on-white or
+   it burns a page of toner and reads as a black rectangle on paper.
+   Everything below re-asserts the light palette inside .pc-report.
+   ════════════════════════════════════════════════════════════════════ */
+
+.app-root .pc-report {
+  color: #111827;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  color-scheme: light;
+}
+
+/* Documents keep their corners — this is paper, not the console */
+.app-root .pc-report [class*='rounded'] { border-radius: revert !important; }
+
+.app-root .pc-report h1,
+.app-root .pc-report h2,
+.app-root .pc-report h3 {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 700;
+}
+
+.app-root .pc-report .tracking-wide   { letter-spacing: 0.025em; }
+.app-root .pc-report .tracking-wider  { letter-spacing: 0.05em; }
+.app-root .pc-report .tracking-widest { letter-spacing: 0.1em; }
+
+/* Surfaces */
+.app-root .pc-report .bg-white    { background-color: #ffffff; }
+.app-root .pc-report .bg-gray-50  { background-color: #f9fafb; }
+.app-root .pc-report .bg-gray-100 { background-color: #f3f4f6; }
+.app-root .pc-report .bg-gray-900 { background-color: #111827; }
+
+/* Type */
+.app-root .pc-report .text-white   { color: #ffffff; }
+.app-root .pc-report .text-gray-900 { color: #111827; }
+.app-root .pc-report .text-gray-800 { color: #1f2937; }
+.app-root .pc-report .text-gray-700 { color: #374151; }
+.app-root .pc-report .text-gray-600 { color: #4b5563; }
+.app-root .pc-report .text-gray-500 { color: #6b7280; }
+.app-root .pc-report .text-gray-400 { color: #9ca3af; }
+.app-root .pc-report .text-gray-300 { color: #d1d5db; }
+
+/* Semantic — real ink colors, not console accents */
+.app-root .pc-report .text-emerald-400 { color: #34d399; }
+.app-root .pc-report .text-emerald-600 { color: #059669; }
+.app-root .pc-report .text-red-500     { color: #ef4444; }
+.app-root .pc-report .text-amber-500   { color: #f59e0b; }
+
+/* Borders / shadows */
+.app-root .pc-report .border-gray-200 { border-color: #e5e7eb; }
+.app-root .pc-report .border-gray-100 { border-color: #f3f4f6; }
+.app-root .pc-report .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+
+/* The screen-only toolbar can stay on-brand, but must read on white */
+.app-root .pc-report .hover\:text-gray-700:hover { color: #374151; }
+
+@media print {
+  .app-root .pc-report,
+  .app-root .pc-report .bg-white { background: #ffffff !important; }
+  .app-root main::before { display: none; }
+}

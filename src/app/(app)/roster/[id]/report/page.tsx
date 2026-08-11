@@ -109,7 +109,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
   const fileName = `${member.name.replace(/\s+/g, '_')}_Liability_Report_${now.toISOString().slice(0, 10)}.pdf`
 
   return (
-    <div className="min-h-screen bg-gray-100 print:bg-white">
+    <div className="pc-report min-h-screen bg-gray-100 print:bg-white">
       {/* Toolbar — screen only */}
       <div className="print:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-8 py-3 flex items-center justify-between">
         <Link href={`/roster/${params.id}`} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
