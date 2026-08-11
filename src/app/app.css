@@ -1,0 +1,388 @@
+/* ============================================================
+   POOLCONTROL — APP SHELL, "DEPTH PROTOCOL" SUBMERGED VARIANT
+   Same design language as the landing page and audit console:
+   abyssal panels, bone ink, signal orange, aqua. Zero radius.
+   Hairline rules. IBM Plex Mono / Unbounded.
+   All rules scoped to .app-root so the landing page is unaffected.
+   ============================================================ */
+
+.app-root {
+  --bone: #efece3;
+  --ink: #0a0f14;
+  --signal: #ff4a1a;
+  --aqua: #45e0ce;
+  --amber: #ffb020;
+  --abyss: #04101b;
+  --panel: #061523;
+  --panel-2: #081c2e;
+  --hairline: rgba(239, 236, 227, 0.14);
+  --hairline-soft: rgba(239, 236, 227, 0.08);
+  --mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+  --disp: 'Unbounded', sans-serif;
+  --serif: 'Fraunces', Georgia, serif;
+
+  background: var(--abyss);
+  color: var(--bone);
+  color-scheme: dark;
+  font-family: var(--mono);
+  -webkit-font-smoothing: antialiased;
+
+  /* Shadcn / CSS-variable overrides for the submerged shell */
+  --background:          207 74% 6%;
+  --foreground:          45 27% 91%;
+  --card:                210 71% 8%;
+  --card-foreground:     45 27% 91%;
+  --popover:             207 74% 6%;
+  --popover-foreground:  45 27% 91%;
+  --primary:             169 72% 57%;
+  --primary-foreground:  210 20% 6%;
+  --secondary:           210 60% 11%;
+  --secondary-foreground:45 27% 91%;
+  --muted:               207 74% 5%;
+  --muted-foreground:    45 15% 55%;
+  --accent:              210 60% 11%;
+  --accent-foreground:   45 27% 91%;
+  --destructive:         13 100% 55%;
+  --destructive-foreground: 45 27% 91%;
+  --border:              45 27% 91% / 0.14;
+  --input:               45 27% 91% / 0.14;
+  --ring:                169 72% 57%;
+  --radius: 0;
+}
+
+.app-root ::selection {
+  background: var(--signal);
+  color: var(--bone);
+}
+
+/* ─── Kill every radius: this is the whole aesthetic ─────────────── */
+.app-root [class*='rounded'],
+.app-root button,
+.app-root input,
+.app-root select,
+.app-root textarea,
+.app-root img {
+  border-radius: 0 !important;
+}
+
+/* ─── Blueprint ground under every page ──────────────────────────── */
+.app-root main {
+  position: relative;
+  background: var(--abyss);
+}
+
+.app-root main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse 700px 300px at 80% 0%, rgba(69, 224, 206, 0.045), transparent 70%),
+    linear-gradient(to right, rgba(239, 236, 227, 0.022) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(239, 236, 227, 0.022) 1px, transparent 1px);
+  background-size: auto, 72px 72px, 72px 72px;
+}
+
+/* Subtle page-level fade-in on navigation */
+.app-root main > * {
+  position: relative;
+  animation: app-page-in 0.18s ease-out both;
+}
+
+@keyframes app-page-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ─── Typography ─────────────────────────────────────────────────── */
+.app-root h1 {
+  font-family: var(--disp);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+
+.app-root h2 {
+  font-family: var(--disp);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Letterspaced microtype — widen the tracking utilities */
+.app-root .tracking-wide   { letter-spacing: 0.16em; }
+.app-root .tracking-wider  { letter-spacing: 0.2em; }
+.app-root .tracking-widest { letter-spacing: 0.26em; }
+
+.app-root .text-white { color: var(--bone); }
+
+.app-root .text-gray-900 { color: var(--bone); }
+.app-root .text-gray-800 { color: rgba(239, 236, 227, 0.88); }
+.app-root .text-gray-700 { color: rgba(239, 236, 227, 0.72); }
+.app-root .text-gray-600 { color: rgba(239, 236, 227, 0.6); }
+.app-root .text-gray-500 { color: rgba(239, 236, 227, 0.48); }
+.app-root .text-gray-400 { color: rgba(239, 236, 227, 0.36); }
+.app-root .text-gray-300 { color: rgba(239, 236, 227, 0.26); }
+.app-root .text-gray-200 { color: rgba(239, 236, 227, 0.18); }
+
+/* ─── Surfaces ───────────────────────────────────────────────────── */
+.app-root .bg-white    { background-color: var(--panel); }
+.app-root .bg-gray-50  { background-color: var(--abyss); }
+.app-root .bg-gray-100 { background-color: rgba(239, 236, 227, 0.05); }
+
+/* Hardcoded header bands (schedule / result / dashboard quick action) */
+.app-root .bg-\[\#0f1e2e\] { background-color: var(--panel); }
+
+/* alternating table-row tints */
+.app-root .bg-gray-50\/40 { background-color: rgba(239, 236, 227, 0.016); }
+.app-root .bg-gray-50\/50 { background-color: rgba(239, 236, 227, 0.016); }
+.app-root .bg-gray-50\/60 { background-color: rgba(239, 236, 227, 0.02); }
+
+/* ─── Borders: bone-tinted hairlines ─────────────────────────────── */
+.app-root .border-gray-200 { border-color: var(--hairline); }
+.app-root .border-gray-100 { border-color: var(--hairline-soft); }
+.app-root .border-gray-50  { border-color: rgba(239, 236, 227, 0.04); }
+.app-root .border-gray-300 { border-color: rgba(239, 236, 227, 0.2); }
+.app-root .border-dashed.border-gray-200 { border-color: rgba(239, 236, 227, 0.16); }
+
+/* ─── Shadows: flat panels, no glow ──────────────────────────────── */
+.app-root .shadow-sm  { box-shadow: none; }
+.app-root .shadow-lg  { box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.35); }
+.app-root .shadow-2xl { box-shadow: 12px 12px 0 rgba(0, 0, 0, 0.45); }
+
+/* ─── Hover states ───────────────────────────────────────────────── */
+.app-root .hover\:bg-gray-50:hover      { background-color: var(--panel-2); }
+.app-root .hover\:bg-gray-50\/50:hover  { background-color: rgba(239, 236, 227, 0.025); }
+.app-root .hover\:bg-gray-50\/60:hover  { background-color: rgba(239, 236, 227, 0.025); }
+.app-root .hover\:shadow-md:hover       { box-shadow: 6px 6px 0 rgba(69, 224, 206, 0.18); border-color: rgba(69, 224, 206, 0.5); }
+.app-root .hover\:border-gray-300:hover { border-color: rgba(239, 236, 227, 0.28); }
+.app-root a.hover\:shadow-md:hover      { box-shadow: 6px 6px 0 rgba(69, 224, 206, 0.18); border-color: rgba(69, 224, 206, 0.5); }
+
+/* ─── Emerald → AQUA ─────────────────────────────────────────────── */
+.app-root .bg-emerald-50  { background-color: rgba(69, 224, 206, 0.07); }
+.app-root .bg-emerald-100 { background-color: rgba(69, 224, 206, 0.12); }
+
+.app-root .text-emerald-300 { color: #7deadd; }
+.app-root .text-emerald-400 { color: var(--aqua); }
+.app-root .text-emerald-500 { color: var(--aqua); }
+.app-root .text-emerald-600 { color: var(--aqua); }
+.app-root .text-emerald-700 { color: var(--aqua); }
+.app-root .text-emerald-800 { color: #7deadd; }
+
+.app-root .border-emerald-100 { border-color: rgba(69, 224, 206, 0.2); }
+.app-root .border-emerald-200 { border-color: rgba(69, 224, 206, 0.28); }
+
+/* Solid aqua CTAs — the .dp-btn-aqua mechanic */
+.app-root .bg-emerald-400,
+.app-root .bg-emerald-500 {
+  background-color: var(--aqua);
+  color: var(--ink);
+  box-shadow: 4px 4px 0 var(--signal);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.16s;
+}
+
+.app-root .bg-emerald-500.text-white,
+.app-root .bg-emerald-400.text-white { color: var(--ink); }
+
+.app-root .hover\:bg-emerald-400:hover,
+.app-root .hover\:bg-emerald-600:hover {
+  background-color: var(--aqua);
+  color: var(--ink);
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--signal);
+}
+
+/* Soft aqua hovers */
+.app-root .hover\:bg-emerald-50:hover      { background-color: rgba(69, 224, 206, 0.06); }
+.app-root .hover\:bg-emerald-100:hover     { background-color: rgba(69, 224, 206, 0.12); }
+.app-root .hover\:bg-emerald-50\/30:hover  { background-color: rgba(69, 224, 206, 0.05); }
+.app-root .hover\:border-emerald-200:hover { border-color: rgba(69, 224, 206, 0.4); }
+.app-root .hover\:text-emerald-400:hover   { color: #7deadd; }
+.app-root .hover\:text-emerald-600:hover   { color: #7deadd; }
+.app-root .hover\:text-emerald-700:hover   { color: #7deadd; }
+
+/* Legend / progress fills */
+.app-root .bg-emerald-400.rounded-full,
+.app-root .bg-emerald-400.inline-block { background-color: var(--aqua); box-shadow: none; }
+
+/* ─── Red → SIGNAL ───────────────────────────────────────────────── */
+.app-root .bg-red-50  { background-color: rgba(255, 74, 26, 0.07); }
+.app-root .bg-red-100 { background-color: rgba(255, 74, 26, 0.12); }
+
+.app-root .bg-red-400,
+.app-root .bg-red-500 {
+  background-color: var(--signal);
+  color: var(--ink);
+}
+
+.app-root .text-red-400 { color: #ff6b45; }
+.app-root .text-red-500 { color: var(--signal); }
+.app-root .text-red-600 { color: var(--signal); }
+.app-root .text-red-700 { color: #ff6b45; }
+.app-root .text-red-800 { color: #ff8a6b; }
+
+.app-root .border-red-100 { border-color: rgba(255, 74, 26, 0.2); }
+.app-root .border-red-200 { border-color: rgba(255, 74, 26, 0.3); }
+
+.app-root .hover\:text-red-400:hover { color: #ff8a6b; }
+.app-root .hover\:text-red-500:hover { color: #ff8a6b; }
+.app-root .hover\:text-red-600:hover { color: #ff8a6b; }
+.app-root .hover\:bg-red-100:hover   { background-color: rgba(255, 74, 26, 0.14); }
+
+.app-root .ring-red-300 { --tw-ring-color: rgba(255, 74, 26, 0.4); }
+
+/* ─── Amber ──────────────────────────────────────────────────────── */
+.app-root .bg-amber-50  { background-color: rgba(255, 176, 32, 0.07); }
+.app-root .bg-amber-100 { background-color: rgba(255, 176, 32, 0.12); }
+.app-root .bg-amber-400 { background-color: var(--amber); }
+
+.app-root .text-amber-400 { color: var(--amber); }
+.app-root .text-amber-500 { color: var(--amber); }
+.app-root .text-amber-600 { color: var(--amber); }
+.app-root .text-amber-700 { color: var(--amber); }
+
+.app-root .border-amber-200 { border-color: rgba(255, 176, 32, 0.3); }
+.app-root .hover\:bg-amber-100:hover { background-color: rgba(255, 176, 32, 0.14); }
+.app-root .ring-amber-300 { --tw-ring-color: rgba(255, 176, 32, 0.4); }
+
+/* ─── Blue ("on track") → neutral bone ───────────────────────────── */
+.app-root .bg-blue-50  { background-color: rgba(239, 236, 227, 0.05); }
+.app-root .bg-blue-100 { background-color: rgba(239, 236, 227, 0.08); }
+.app-root .bg-blue-400 { background-color: rgba(239, 236, 227, 0.5); }
+
+.app-root .text-blue-400 { color: rgba(239, 236, 227, 0.55); }
+.app-root .text-blue-500 { color: rgba(239, 236, 227, 0.6); }
+.app-root .text-blue-600 { color: rgba(239, 236, 227, 0.7); }
+.app-root .text-blue-700 { color: rgba(239, 236, 227, 0.7); }
+.app-root .text-blue-800 { color: rgba(239, 236, 227, 0.8); }
+
+.app-root .border-blue-100 { border-color: rgba(239, 236, 227, 0.12); }
+.app-root .border-blue-200 { border-color: rgba(239, 236, 227, 0.18); }
+
+/* ─── Purple / indigo / orange → neutral or signal-adjacent ──────── */
+.app-root .bg-purple-50   { background-color: rgba(239, 236, 227, 0.05); }
+.app-root .bg-purple-100  { background-color: rgba(239, 236, 227, 0.08); }
+.app-root .text-purple-600 { color: rgba(239, 236, 227, 0.7); }
+.app-root .text-purple-700 { color: rgba(239, 236, 227, 0.7); }
+
+.app-root .bg-orange-50    { background-color: rgba(255, 74, 26, 0.07); }
+.app-root .text-orange-700 { color: #ff6b45; }
+
+.app-root .text-indigo-500 { color: rgba(239, 236, 227, 0.6); }
+.app-root .text-indigo-600 { color: rgba(239, 236, 227, 0.6); }
+.app-root .ring-indigo-200 { --tw-ring-color: rgba(239, 236, 227, 0.15); }
+.app-root .border-indigo-400 { border-color: rgba(239, 236, 227, 0.3); }
+.app-root .hover\:text-indigo-700:hover { color: rgba(239, 236, 227, 0.85); }
+
+/* ─── Grays hover text ───────────────────────────────────────────── */
+.app-root .hover\:text-gray-600:hover { color: rgba(239, 236, 227, 0.72); }
+.app-root .hover\:text-gray-700:hover { color: rgba(239, 236, 227, 0.8); }
+.app-root .hover\:text-gray-900:hover { color: var(--bone); }
+
+/* ─── Form elements ──────────────────────────────────────────────── */
+.app-root input:not([type='file']):not([type='radio']):not([type='checkbox']),
+.app-root select,
+.app-root textarea {
+  background-color: var(--abyss);
+  border-color: var(--hairline);
+  color: var(--bone);
+  font-family: var(--mono);
+  transition: border-color 0.15s;
+}
+
+.app-root input:focus,
+.app-root select:focus,
+.app-root textarea:focus {
+  border-color: var(--aqua);
+  outline: none;
+}
+
+.app-root input::placeholder,
+.app-root textarea::placeholder {
+  color: rgba(239, 236, 227, 0.28);
+  font-style: italic;
+}
+
+.app-root select option {
+  background-color: var(--panel);
+  color: var(--bone);
+}
+
+.app-root input[type='date'] { color-scheme: dark; }
+
+.app-root input[type='file'] {
+  color: rgba(239, 236, 227, 0.55);
+  background: transparent;
+  border: none;
+}
+
+.app-root input[type='file']::file-selector-button {
+  background-color: rgba(69, 224, 206, 0.12);
+  color: var(--aqua);
+  border: 1px solid rgba(69, 224, 206, 0.4);
+  padding: 6px 14px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  margin-right: 12px;
+  transition: background-color 0.15s ease;
+}
+
+.app-root input[type='file']::file-selector-button:hover {
+  background-color: rgba(69, 224, 206, 0.2);
+}
+
+/* ─── Inline code ────────────────────────────────────────────────── */
+.app-root code {
+  background-color: rgba(69, 224, 206, 0.1);
+  color: var(--aqua);
+  padding: 1px 5px;
+  font-size: 0.85em;
+}
+
+/* ─── Focus rings ────────────────────────────────────────────────── */
+.app-root .focus\:ring-emerald-400\/50:focus { --tw-ring-color: rgba(69, 224, 206, 0.35); }
+.app-root .focus\:ring-indigo-400\/50:focus  { --tw-ring-color: rgba(239, 236, 227, 0.2); }
+.app-root .focus\:ring-2:focus { outline: none; }
+
+/* ─── Tables / rows ──────────────────────────────────────────────── */
+.app-root tr.hover\:bg-gray-50\/50:hover,
+.app-root .hover\:bg-gray-50\/50:hover { background-color: rgba(239, 236, 227, 0.025); }
+
+/* ─── Progress bar track ─────────────────────────────────────────── */
+.app-root .bg-gray-100.rounded-full { background-color: rgba(239, 236, 227, 0.08); }
+.app-root .bg-white\/10 { background-color: rgba(239, 236, 227, 0.08); }
+
+/* ─── Opacity adjustments ────────────────────────────────────────── */
+.app-root .opacity-70 { opacity: 0.45; }
+
+/* ─── Transitions ────────────────────────────────────────────────── */
+.app-root .transition-all     { transition: all 0.15s ease; }
+.app-root .transition-colors  { transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease; }
+.app-root .transition-opacity { transition: opacity 0.15s ease; }
+
+/* ─── Scrollbar ──────────────────────────────────────────────────── */
+.app-root ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.app-root ::-webkit-scrollbar-track { background: transparent; }
+.app-root ::-webkit-scrollbar-thumb {
+  background: rgba(239, 236, 227, 0.12);
+  border-radius: 0;
+}
+.app-root ::-webkit-scrollbar-thumb:hover {
+  background: rgba(239, 236, 227, 0.2);
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .app-root main > * { animation: none; }
+}

@@ -1,5 +1,6 @@
 'use client'
 
+import '../../auth/auth.css'
 import { useState, useTransition } from 'react'
 import { Loader2, CheckCircle, Eye, EyeOff, Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -35,19 +36,11 @@ const ROLE_BULLETS: Record<string, string[]> = {
 }
 
 const ROLE_CTA: Record<string, string> = {
-  lifeguard: 'Go to my profile →',
-  supervisor: 'Open schedule →',
-  manager: 'Open schedule →',
-  director: 'Open schedule →',
-  corporate: 'Go to dashboard →',
-}
-
-const ROLE_BADGE: Record<string, string> = {
-  lifeguard: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
-  supervisor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
-  manager: 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
-  director: 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
-  corporate: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
+  lifeguard: 'Go to my profile',
+  supervisor: 'Open schedule',
+  manager: 'Open schedule',
+  director: 'Open schedule',
+  corporate: 'Go to dashboard',
 }
 
 interface Props {
@@ -66,8 +59,7 @@ export function WelcomeClient({ profile, facilityName }: Props) {
   const firstName = profile.name.split(' ')[0]
   const initials = profile.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
   const bullets = ROLE_BULLETS[profile.role] ?? []
-  const cta = ROLE_CTA[profile.role] ?? 'Get Started →'
-  const badgeClass = ROLE_BADGE[profile.role] ?? ROLE_BADGE.lifeguard
+  const cta = ROLE_CTA[profile.role] ?? 'Get started'
   const supabase = createClient()
 
   const passwordsMatch = confirm.length > 0 && password === confirm
@@ -91,36 +83,75 @@ export function WelcomeClient({ profile, facilityName }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a1628] via-[#0f1e2e] to-[#0a1f1a] flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-sm">
+    <div className="dp-auth">
+      <div className="dp-auth-inner">
 
-        {/* Glass card */}
-        <div className="bg-white/[0.06] border border-white/[0.1] rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
+        {/* Card */}
+        <div className="dp-auth-card">
+          <span className="dp-auth-tick dp-auth-tick-tl" aria-hidden="true" />
+          <span className="dp-auth-tick dp-auth-tick-tr" aria-hidden="true" />
+          <span className="dp-auth-tick dp-auth-tick-bl" aria-hidden="true" />
+          <span className="dp-auth-tick dp-auth-tick-br" aria-hidden="true" />
 
-          {/* Avatar */}
-          <div className="text-center mb-5">
+          {/* Avatar + heading */}
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-xl font-bold mx-auto mb-4 shadow-lg"
-              style={{ backgroundColor: profile.avatar_color ?? '#10b981' }}
+              style={{
+                width: 56,
+                height: 56,
+                margin: '0 auto 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'var(--disp)',
+                fontWeight: 700,
+                fontSize: 18,
+                color: '#efece3',
+                border: '1px solid var(--ink)',
+                backgroundColor: profile.avatar_color ?? '#0a0f14',
+              }}
             >
               {initials}
             </div>
 
-            <h1 className="text-2xl font-bold text-white mb-1">Welcome, {firstName}!</h1>
+            <h1 className="dp-auth-title">Welcome, {firstName}<i>.</i></h1>
             {facilityName && (
-              <p className="text-white/40 text-sm mb-3">You&apos;ve been added to {facilityName}</p>
+              <p className="dp-auth-sub" style={{ marginBottom: 10 }}>
+                You&apos;ve been added to {facilityName}
+              </p>
             )}
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold capitalize ${badgeClass}`}>
-              {profile.role}
+            <span
+              className="dp-auth-label"
+              style={{
+                display: 'inline-block',
+                border: '1px solid var(--ink)',
+                padding: '4px 10px',
+                opacity: 0.8,
+                marginBottom: 0,
+              }}
+            >
+              {profile.role.replace('_', ' ')}
             </span>
           </div>
 
           {/* Bullets */}
           {bullets.length > 0 && (
-            <ul className="space-y-2.5 mb-6">
+            <ul style={{ listStyle: 'none', margin: '0 0 20px', padding: 0 }}>
               {bullets.map((b) => (
-                <li key={b} className="flex items-start gap-2.5 text-sm text-white/70">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                <li
+                  key={b}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    padding: '8px 0',
+                    borderTop: '1px dashed rgba(10,15,20,0.2)',
+                    fontSize: 11,
+                    lineHeight: 1.6,
+                    letterSpacing: '0.03em',
+                  }}
+                >
+                  <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: '#ff4a1a' }} />
                   {b}
                 </li>
               ))}
@@ -128,74 +159,81 @@ export function WelcomeClient({ profile, facilityName }: Props) {
           )}
 
           {/* Password setup */}
-          <div className="border-t border-white/[0.08] pt-5 mt-2">
-            <div className="flex items-center gap-2 mb-1">
-              <Lock className="w-4 h-4 text-white/40" />
-              <p className="text-sm font-medium text-white">Set a password</p>
+          <div style={{ borderTop: '1px solid rgba(10,15,20,0.25)', paddingTop: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Lock className="w-3.5 h-3.5" style={{ opacity: 0.5 }} />
+              <span className="dp-auth-label" style={{ marginBottom: 0, opacity: 0.8 }}>Set a password</span>
             </div>
-            <p className="text-white/40 text-xs mb-4">Add a password so you can sign in quickly next time.</p>
+            <p className="dp-auth-sub" style={{ marginBottom: 16 }}>
+              Add a password so you can sign in quickly next time.
+            </p>
 
-            <form onSubmit={handleSetPassword} className="space-y-3">
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="New password"
-                  autoComplete="new-password"
-                  className="w-full px-3.5 py-2.5 bg-white/[0.07] border border-white/[0.12] rounded-lg text-white placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/60 transition-all pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+            <form onSubmit={handleSetPassword}>
+              <div className="dp-auth-field">
+                <div className="dp-auth-input-wrap">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="New password"
+                    autoComplete="new-password"
+                    className="dp-auth-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="dp-auth-eye"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
-              <div className="relative">
-                <input
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  placeholder="Confirm password"
-                  autoComplete="new-password"
-                  className="w-full px-3.5 py-2.5 bg-white/[0.07] border border-white/[0.12] rounded-lg text-white placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/60 transition-all pr-10"
-                />
-                {passwordsMatch && (
-                  <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400 pointer-events-none" />
-                )}
-                {passwordsMismatch && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400 text-lg pointer-events-none">✕</span>
-                )}
+              <div className="dp-auth-field">
+                <div className="dp-auth-input-wrap">
+                  <input
+                    type="password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    placeholder="Confirm password"
+                    autoComplete="new-password"
+                    className="dp-auth-input"
+                  />
+                  {passwordsMatch && (
+                    <CheckCircle className="dp-auth-eye w-4 h-4 pointer-events-none" style={{ color: '#0a8a72' }} />
+                  )}
+                  {passwordsMismatch && (
+                    <span className="dp-auth-eye pointer-events-none" style={{ color: '#ff4a1a' }}>✕</span>
+                  )}
+                </div>
               </div>
 
-              {pwError && (
-                <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">{pwError}</p>
-              )}
+              {pwError && <p className="dp-auth-error">{pwError}</p>}
 
               <button
                 type="submit"
                 disabled={savingPw || isPending || !password || !confirm}
-                className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg text-sm transition-colors shadow-lg shadow-emerald-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
+                className="dp-auth-btn"
               >
                 {(savingPw || isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
-                {savingPw || isPending ? 'Saving...' : `${cta}`}
+                {savingPw || isPending ? 'Saving…' : cta}<span aria-hidden="true">→</span>
               </button>
             </form>
 
-            <button
-              onClick={handleSkip}
-              disabled={isPending || savingPw}
-              className="w-full text-center text-white/25 hover:text-white/50 text-xs mt-3 transition-colors"
-            >
-              Skip for now — I&apos;ll use a code each time
-            </button>
+            <p style={{ textAlign: 'center', marginTop: 14 }}>
+              <button
+                onClick={handleSkip}
+                disabled={isPending || savingPw}
+                className="dp-auth-link"
+              >
+                Skip for now — I&apos;ll use a code each time
+              </button>
+            </p>
           </div>
         </div>
 
-        <p className="text-center text-white/20 text-xs mt-6">
+        <p className="dp-auth-foot">
           PoolControl.ai · Aquatics Performance Platform
         </p>
       </div>

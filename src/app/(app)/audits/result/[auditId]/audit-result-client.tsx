@@ -1,13 +1,13 @@
 'use client'
 
+import '../../new/audit.css'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { LifeguardAvatar } from '@/components/shared/lifeguard-avatar'
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { CheckCircle, XCircle, Clock, Star, ChevronRight } from 'lucide-react'
+import { CheckCircle, Clock, ChevronRight } from 'lucide-react'
 import { assignRemediationTask } from './actions'
 
 interface AuditResultClientProps {
@@ -18,7 +18,6 @@ interface AuditResultClientProps {
   deadlineHours: number
   remediationTask: any
   hotSeatQueue: any[]
-  coachingPoints: Array<{ title: string; description: string }>
 }
 
 function useCountdown(deadline: string | null) {
@@ -42,11 +41,15 @@ function useCountdown(deadline: string | null) {
 
 export function AuditResultClient({
   audit, lifeguard, auditType, facility, deadlineHours,
-  remediationTask, hotSeatQueue, coachingPoints,
+  remediationTask, hotSeatQueue,
 }: AuditResultClientProps) {
-  const [editablePoints, setEditablePoints] = useState(
-    coachingPoints.map((p) => ({ ...p, editing: false }))
+  const criteriaResults = audit.audit_criteria_results ?? []
+  const hasFailures = criteriaResults.some(
+    (r: any) => r.result === 'fail' || r.result === 'needs_attention'
   )
+
+  const [editablePoints, setEditablePoints] = useState<Array<{ title: string; description: string; editing: boolean }>>([])
+  const [coachingLoading, setCoachingLoading] = useState(hasFailures)
   const [assigning, setAssigning] = useState(false)
   const [remTask, setRemTask] = useState(remediationTask)
 
@@ -55,10 +58,6 @@ export function AuditResultClient({
 
   const passed = audit.passed
   const score = audit.score
-  const criteriaResults = audit.audit_criteria_results ?? []
-  const hasFailures = criteriaResults.some(
-    (r: any) => r.result === 'fail' || r.result === 'needs_attention'
-  )
   const guardName = lifeguard?.name ?? 'Unknown'
   const submittedAt = audit.submitted_at
     ? new Date(audit.submitted_at).toLocaleString('en-US', {
@@ -67,8 +66,47 @@ export function AuditResultClient({
       })
     : ''
 
+  // Fetch coaching points client-side so the page renders immediately
+  useEffect(() => {
+    if (!hasFailures) return
+
+    const failedCriteria = criteriaResults.filter(
+      (r: any) => r.result === 'fail' || r.result === 'needs_attention'
+    )
+
+    const fallback = failedCriteria.map((r: any) => ({
+      title: r.criterion_label,
+      description: r.result === 'fail'
+        ? 'This criterion was marked as a failure. Review the standard technique and expectations with the lifeguard before their next shift.'
+        : 'This criterion needs attention. Discuss proper technique and what "meeting standard" looks like with the lifeguard.',
+      editing: false,
+    }))
+
+    fetch('/api/coach/coaching-points', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        failed_criteria: failedCriteria,
+        audit_type: audit.audit_type_name,
+        cert_body: auditType?.cert_body,
+        lifeguard_name: lifeguard?.name ?? 'the lifeguard',
+        criteria_definitions: auditType?.criteria,
+      }),
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data && Array.isArray(data) && data.length > 0) {
+          setEditablePoints(data.map((p: any) => ({ ...p, editing: false })))
+        } else {
+          setEditablePoints(fallback)
+        }
+      })
+      .catch(() => setEditablePoints(fallback))
+      .finally(() => setCoachingLoading(false))
+  }, [])
+
   async function handleAssignRemediation() {
-    if (remTask) return // already assigned
+    if (remTask) return
     setAssigning(true)
 
     const coachingNotes = editablePoints.map((p) => `${p.title}: ${p.description}`).join('\n\n')
@@ -88,69 +126,71 @@ export function AuditResultClient({
     setAssigning(false)
   }
 
-  const RESULT_STYLES = {
-    pass: { badge: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-400', label: '✓ Pass' },
-    needs_attention: { badge: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400', label: '△ Needs Attn' },
-    fail: { badge: 'bg-red-100 text-red-700', dot: 'bg-red-400', label: '✕ Fail' },
+  const RESULT_META: Record<string, { pill: string; dot: string; label: string }> = {
+    pass:            { pill: 'da-pill da-pill-pass', dot: '#45e0ce', label: 'PASS' },
+    needs_attention: { pill: 'da-pill da-pill-attn', dot: '#ffb020', label: 'NEEDS ATTN' },
+    fail:            { pill: 'da-pill da-pill-fail', dot: '#ff4a1a', label: 'FAIL' },
   }
 
+  const sectionLabel = 'da-label'
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="bg-[#0f1e2e] text-white px-8 py-5">
-        <div className="flex items-center justify-between">
+    <div className="da-root" style={{ height: '100%' }}>
+      {/* ── Console header ── */}
+      <div className="da-head">
+        <div className="da-head-bar">
+          <span>AUDIT RESULT · {auditType?.display_name?.toUpperCase()}</span>
+          <span>{facility?.name?.toUpperCase()}</span>
+        </div>
+        <div className="da-head-main">
           <div>
-            <h1 className="text-lg font-bold">
-              Audit Result — {auditType?.display_name} · {guardName} · {audit.zone}
+            <h1 className="da-title">
+              {guardName} <em>{audit.zone ?? ''}</em>
             </h1>
-            <p className="text-white/50 text-sm mt-0.5">
-              Completed {submittedAt} · Supervisor: {facility?.name}
+            <p className="da-sub">
+              COMPLETED {submittedAt.toUpperCase()}
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            {passed ? (
-              <span className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-semibold text-sm">
-                <CheckCircle className="w-4 h-4" /> AUDIT PASSED
-              </span>
-            ) : (
-              <span className="flex items-center gap-2 px-3 py-1.5 bg-red-500 text-white rounded-lg font-semibold text-sm">
-                <XCircle className="w-4 h-4" /> AUDIT FAILED
-              </span>
-            )}
-            <div className="text-right">
-              <p className="text-xs text-white/40">Score</p>
-              <p className={cn(
-                'text-2xl font-bold',
-                (score ?? 0) >= 4 ? 'text-emerald-400' : (score ?? 0) >= 3 ? 'text-amber-400' : 'text-red-400'
-              )}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 22, flexShrink: 0 }}>
+            <span
+              className={passed ? 'da-pill da-pill-pass' : 'da-pill da-pill-fail'}
+              style={{ fontSize: 10, padding: '7px 14px', letterSpacing: '0.2em' }}
+            >
+              {passed ? 'AUDIT PASSED' : 'AUDIT FAILED'}
+            </span>
+            <div className="da-score">
+              <div className={cn('da-score-val', (score ?? 0) < 3 && 'is-low')}>
                 {score?.toFixed(1) ?? '—'}
-              </p>
+              </div>
+              <div className="da-score-label">SCORE / 5.0</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3-column body */}
-      <div className="flex-1 flex min-h-0">
+      {/* ── 3-column body ── */}
+      <div className="da-body">
 
         {/* Left: Criteria Breakdown */}
-        <div className="w-72 shrink-0 border-r border-gray-200 overflow-y-auto px-5 py-5">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Criteria Breakdown
-          </p>
-          <div className="space-y-2.5">
+        <div style={{ width: 288, flexShrink: 0, borderRight: '1px solid var(--hairline)', overflowY: 'auto', padding: '20px 20px 28px' }}>
+          <span className={sectionLabel}>CRITERIA BREAKDOWN</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {criteriaResults.map((r: any) => {
-              const style = RESULT_STYLES[r.result as keyof typeof RESULT_STYLES]
+              const meta = RESULT_META[r.result] ?? RESULT_META.pass
               return (
-                <div key={r.id} className="flex items-start gap-2.5">
-                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${style.dot}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800 leading-snug">{r.criterion_label}</p>
-                    <span className={`inline-block mt-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded ${style.badge}`}>
-                      {style.label}
+                <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderTop: '1px solid var(--hairline-soft)' }}>
+                  <span style={{ width: 7, height: 7, marginTop: 5, flexShrink: 0, background: meta.dot }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 10.5, lineHeight: 1.6, letterSpacing: '0.04em' }}>
+                      {r.criterion_label}
+                    </p>
+                    <span className={meta.pill} style={{ display: 'inline-block', marginTop: 6 }}>
+                      {meta.label}
                     </span>
                     {r.comment && (
-                      <p className="text-xs text-gray-500 mt-0.5 italic">{r.comment}</p>
+                      <p style={{ margin: '6px 0 0', fontSize: 9.5, fontStyle: 'italic', opacity: 0.55, lineHeight: 1.6 }}>
+                        {r.comment}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -160,28 +200,42 @@ export function AuditResultClient({
         </div>
 
         {/* Center: Coaching Points */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 border-r border-gray-200">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
-            What to Talk to {guardName.split(' ')[0]} About
-          </p>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 28px', borderRight: '1px solid var(--hairline)' }}>
+          <span className={sectionLabel}>
+            WHAT TO TALK TO <b>{guardName.split(' ')[0].toUpperCase()}</b> ABOUT
+          </span>
 
           {!hasFailures ? (
-            <div className="text-center py-12 text-gray-400">
-              <CheckCircle className="w-10 h-10 mx-auto mb-2 text-emerald-400" />
-              <p className="font-medium text-gray-600">All criteria passed!</p>
-              <p className="text-sm mt-1">Great job — no coaching needed.</p>
+            <div style={{ textAlign: 'center', padding: '56px 0' }}>
+              <CheckCircle className="w-9 h-9" style={{ color: '#45e0ce', margin: '0 auto 12px' }} />
+              <p style={{ margin: 0, fontFamily: 'var(--disp)', fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                All criteria passed
+              </p>
+              <p className="da-sub" style={{ marginTop: 8 }}>NO COACHING NEEDED.</p>
+            </div>
+          ) : coachingLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="da-coach-msg" style={{ opacity: 0.35 }}>
+                  <div style={{ height: 11, width: '55%', background: 'var(--hairline)', marginBottom: 10 }} />
+                  <div style={{ height: 8, width: '100%', background: 'var(--hairline-soft)', marginBottom: 6 }} />
+                  <div style={{ height: 8, width: '80%', background: 'var(--hairline-soft)' }} />
+                </div>
+              ))}
+              <p className="da-sub" style={{ textAlign: 'center' }}>
+                GENERATING COACHING POINTS<span className="da-caret" />
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {editablePoints.map((point, i) => (
-                <div key={i} className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                  <div className="flex items-start gap-2 mb-2">
-                    <Star className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                    <h3 className="text-sm font-semibold text-gray-900">{point.title}</h3>
-                  </div>
+                <div key={i} className="da-coach-msg">
+                  <p style={{ margin: '0 0 8px', fontFamily: 'var(--disp)', fontWeight: 700, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--aqua)' }}>
+                    {String(i + 1).padStart(2, '0')} / {point.title}
+                  </p>
                   {point.editing ? (
                     <Textarea
-                      className="text-sm resize-none bg-white"
+                      className="da-textarea"
                       rows={3}
                       value={point.description}
                       onChange={(e) => {
@@ -198,7 +252,7 @@ export function AuditResultClient({
                     />
                   ) : (
                     <p
-                      className="text-sm text-gray-700 leading-relaxed cursor-text hover:bg-amber-100 rounded p-1 -m-1 transition-colors"
+                      style={{ margin: 0, fontSize: 10.5, lineHeight: 1.75, letterSpacing: '0.03em', cursor: 'text' }}
                       onClick={() => {
                         const next = [...editablePoints]
                         next[i] = { ...next[i], editing: true }
@@ -210,72 +264,70 @@ export function AuditResultClient({
                   )}
                 </div>
               ))}
-              <p className="text-xs text-gray-400 text-center">Click any coaching point to edit before sending</p>
+              <p className="da-sub" style={{ textAlign: 'center' }}>
+                CLICK ANY COACHING POINT TO EDIT BEFORE SENDING
+              </p>
             </div>
           )}
         </div>
 
         {/* Right: Hot Seat */}
-        <div className="w-72 shrink-0 overflow-y-auto px-5 py-5">
+        <div style={{ width: 288, flexShrink: 0, overflowY: 'auto', padding: '20px 20px 28px' }}>
           {!passed ? (
             <>
-              <div className="flex items-center gap-2 mb-4">
-                <div className={`w-2 h-2 rounded-full ${remTask ? 'bg-red-500 animate-pulse' : 'bg-gray-300'}`} />
-                <p className="text-xs font-semibold text-gray-800 uppercase tracking-wide">
-                  {remTask ? 'Hot Seat — Active' : 'Pending Assignment'}
-                </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <span
+                  className={remTask ? 'da-rec' : undefined}
+                  style={{ width: 7, height: 7, background: remTask ? 'var(--signal)' : 'var(--hairline)' }}
+                />
+                <span className={sectionLabel} style={{ marginBottom: 0 }}>
+                  {remTask ? 'HOT SEAT — ACTIVE' : 'PENDING ASSIGNMENT'}
+                </span>
               </div>
 
-              {/* Countdown */}
               {remTask ? (
-                <div className="bg-[#0f1e2e] rounded-xl p-4 mb-4 text-center">
-                  <p className="text-xs text-white/40 uppercase tracking-wide mb-1">
-                    Remediation Window Closes In
-                  </p>
-                  <p className={cn(
-                    'text-3xl font-bold font-mono',
-                    countdown === 'EXPIRED' ? 'text-red-400' : 'text-red-300'
-                  )}>
+                <div style={{ border: '1px solid var(--signal)', background: 'rgba(255,74,26,0.06)', padding: '16px 14px', marginBottom: 16, textAlign: 'center' }}>
+                  <p className="da-eyebrow" style={{ margin: '0 0 8px' }}>REMEDIATION WINDOW CLOSES IN</p>
+                  <p style={{ margin: 0, fontFamily: 'var(--disp)', fontWeight: 900, fontSize: 26, lineHeight: 1, color: 'var(--signal)' }}>
                     {countdown}
                   </p>
-                  <p className="text-xs text-white/30 mt-1">{deadlineHours}-hour deadline</p>
+                  <p className="da-sub" style={{ marginTop: 8 }}>{deadlineHours}-HOUR DEADLINE</p>
                 </div>
               ) : (
-                <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-4 mb-4 text-center">
-                  <Clock className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-                  <p className="text-xs text-gray-500">
-                    {deadlineHours}-hour remediation window starts on assignment
+                <div className="da-notes" style={{ marginBottom: 16, textAlign: 'center' }}>
+                  <Clock className="w-5 h-5" style={{ margin: '0 auto 8px', opacity: 0.4 }} />
+                  <p className="da-sub" style={{ margin: 0 }}>
+                    {deadlineHours}-HOUR REMEDIATION WINDOW STARTS ON ASSIGNMENT
                   </p>
                 </div>
               )}
 
-              {/* Queue */}
-              <div className="mb-4">
-                <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Hot Seat Queue</p>
-                <div className="space-y-2">
+              <div style={{ marginBottom: 16 }}>
+                <span className={sectionLabel}>HOT SEAT QUEUE</span>
+                <div>
                   {hotSeatQueue.slice(0, 4).map((task, i) => {
                     const guard = task.user_profiles
                     const hoursLeft = task.deadline
                       ? Math.max(0, Math.floor((new Date(task.deadline).getTime() - Date.now()) / 3600000))
                       : null
+                    const isNew = task.id === remTask?.id
                     return (
-                      <div key={task.id} className="flex items-center gap-2.5 py-1.5">
-                        <span className="text-xs font-bold text-gray-400 w-4">{i + 1}</span>
+                      <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid var(--hairline-soft)' }}>
+                        <span style={{ fontFamily: 'var(--disp)', fontWeight: 900, fontSize: 9, color: 'var(--signal)', width: 16 }}>
+                          {String(i + 1).padStart(2, '0')}
+                        </span>
                         <LifeguardAvatar
                           name={guard?.name ?? '?'}
                           avatarColor={guard?.avatar_color}
                           size="sm"
                         />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-gray-800 truncate">
-                            {guard?.name?.split(' ')[0]} — Visual
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {guard?.name?.split(' ')[0]?.toUpperCase()}
                           </p>
                         </div>
-                        <span className={cn(
-                          'text-[10px] font-semibold whitespace-nowrap',
-                          task.id === remTask?.id ? 'text-emerald-600' : 'text-gray-400'
-                        )}>
-                          {task.id === remTask?.id ? 'NEW' : hoursLeft !== null ? `${hoursLeft}h left` : '—'}
+                        <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: '0.12em', whiteSpace: 'nowrap', color: isNew ? 'var(--aqua)' : 'rgba(239,236,227,0.4)' }}>
+                          {isNew ? 'NEW' : hoursLeft !== null ? `${hoursLeft}H LEFT` : '—'}
                         </span>
                       </div>
                     )
@@ -283,47 +335,34 @@ export function AuditResultClient({
                 </div>
               </div>
 
-              {/* CTA */}
-              <Button
-                className={cn(
-                  'w-full font-semibold',
-                  remTask
-                    ? 'bg-gray-100 text-gray-500 cursor-default hover:bg-gray-100'
-                    : 'bg-emerald-500 hover:bg-emerald-400 text-white'
-                )}
+              <button
+                className={cn('da-btn', !remTask && 'da-btn-aqua')}
+                style={{ width: '100%' }}
                 onClick={!remTask ? handleAssignRemediation : undefined}
                 disabled={!!remTask || assigning}
               >
-                {assigning ? 'Assigning...' : remTask ? 'Task Assigned ✓' : 'Assign Remediation Task'}
-              </Button>
+                {assigning ? 'Assigning…' : remTask ? 'Task assigned ✓' : 'Assign remediation'}
+              </button>
             </>
           ) : (
-            <div className="text-center py-8 text-gray-400">
-              <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-              <p className="text-sm font-medium text-gray-600">Audit passed</p>
-              <p className="text-xs mt-1">No remediation needed.</p>
+            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+              <CheckCircle className="w-7 h-7" style={{ color: '#45e0ce', margin: '0 auto 10px' }} />
+              <p style={{ margin: 0, fontFamily: 'var(--disp)', fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Audit passed
+              </p>
+              <p className="da-sub" style={{ marginTop: 6 }}>NO REMEDIATION NEEDED.</p>
             </div>
           )}
 
-          {/* Navigation */}
-          <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-            <Link
-              href={`/roster/${audit.lifeguard_id}`}
-              className="flex items-center justify-between text-sm text-gray-600 hover:text-emerald-600 transition-colors"
-            >
-              View {guardName.split(' ')[0]}&apos;s profile <ChevronRight className="w-4 h-4" />
+          <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--hairline)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Link href={`/roster/${audit.lifeguard_id}`} className="da-chip" style={{ justifyContent: 'space-between' }}>
+              VIEW {guardName.split(' ')[0].toUpperCase()}&apos;S PROFILE <ChevronRight className="w-3 h-3" />
             </Link>
-            <Link
-              href="/schedule"
-              className="flex items-center justify-between text-sm text-gray-600 hover:text-emerald-600 transition-colors"
-            >
-              Back to schedule <ChevronRight className="w-4 h-4" />
+            <Link href="/schedule" className="da-chip" style={{ justifyContent: 'space-between' }}>
+              BACK TO SCHEDULE <ChevronRight className="w-3 h-3" />
             </Link>
-            <Link
-              href="/audits/new"
-              className="flex items-center justify-between text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
-            >
-              Start another audit <ChevronRight className="w-4 h-4" />
+            <Link href="/audits/new" className="da-chip" style={{ justifyContent: 'space-between', color: 'var(--aqua)', borderColor: 'rgba(69,224,206,0.4)', opacity: 1 }}>
+              START ANOTHER AUDIT <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
         </div>

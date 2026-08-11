@@ -1,5 +1,6 @@
 'use client'
 
+import '../auth.css'
 import { Suspense } from 'react'
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -92,29 +93,29 @@ function VerifyOTPContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a1628] via-[#0f1e2e] to-[#0a1f1a] flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="dp-auth">
+      <div className="dp-auth-inner">
 
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <img src="/logo.jpeg" alt="PoolControl.ai" className="w-14 h-14 rounded-2xl object-cover shadow-lg mb-4" />
-          <h1 className="text-2xl font-bold text-white tracking-tight">PoolControl.ai</h1>
-          <p className="text-white/40 text-sm mt-1">Aquatics Performance Platform</p>
+        {/* Brand */}
+        <div className="dp-auth-brand">
+          <img src="/logo.jpeg" alt="PoolControl.ai" className="dp-auth-logo" />
+          <span className="dp-auth-name">POOLCONTROL<i>.AI</i></span>
         </div>
 
-        <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
-
         {/* Card */}
-        <div className="bg-white/[0.06] border border-white/[0.1] rounded-2xl p-7 backdrop-blur-sm shadow-2xl">
-          <h2 className="text-xl font-semibold text-white mb-1">Enter your code</h2>
-          <p className="text-white/40 text-sm mb-6">
-            We sent a 6-digit code to{' '}
-            <span className="text-white/70 font-medium">{email}</span>.
-            Check your inbox.
+        <div className="dp-auth-card">
+          <span className="dp-auth-tick dp-auth-tick-tl" aria-hidden="true" />
+          <span className="dp-auth-tick dp-auth-tick-tr" aria-hidden="true" />
+          <span className="dp-auth-tick dp-auth-tick-bl" aria-hidden="true" />
+          <span className="dp-auth-tick dp-auth-tick-br" aria-hidden="true" />
+
+          <h1 className="dp-auth-title">Enter your code<i>.</i></h1>
+          <p className="dp-auth-sub">
+            We sent a 6-digit code to <strong>{email}</strong>. Check your inbox.
           </p>
 
           {/* 6-digit input */}
-          <div className="flex gap-2 justify-between mb-6">
+          <div className="dp-auth-otp">
             {digits.map((d, i) => (
               <input
                 key={i}
@@ -126,52 +127,43 @@ function VerifyOTPContent() {
                 onChange={(e) => handleChange(i, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(i, e)}
                 onFocus={(e) => e.target.select()}
-                className="w-12 h-14 text-center text-xl font-bold bg-white/[0.07] border border-white/[0.15] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 transition-all caret-transparent"
               />
             ))}
           </div>
 
           {/* Error */}
           {(pageState === 'error' && errorMsg) && (
-            <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2 mb-4">
-              {errorMsg}
-            </p>
+            <p className="dp-auth-error">{errorMsg}</p>
           )}
 
           {/* Resent confirmation */}
           {resent && (
-            <p className="text-emerald-400 text-xs bg-emerald-400/10 border border-emerald-400/20 rounded-lg px-3 py-2 mb-4">
-              New code sent — check your inbox.
-            </p>
+            <p className="dp-auth-ok">New code sent — check your inbox.</p>
           )}
 
           {/* Verify button */}
           <button
             onClick={handleVerify}
             disabled={!allFilled || pageState === 'verifying'}
-            className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg text-sm transition-colors shadow-lg shadow-emerald-500/20 active:scale-[0.98]"
+            className="dp-auth-btn"
           >
-            {pageState === 'verifying' ? 'Verifying...' : 'Verify code'}
+            {pageState === 'verifying' ? 'Verifying…' : 'Verify code'}<span aria-hidden="true">→</span>
           </button>
 
           {/* Resend */}
-          <p className="text-center text-white/30 text-xs mt-4">
+          <p className="dp-auth-sub" style={{ textAlign: 'center', margin: '18px 0 0' }}>
             Didn&apos;t get it?{' '}
-            <button
-              onClick={handleResend}
-              className="text-emerald-400 hover:text-emerald-300 transition-colors underline underline-offset-2"
-            >
+            <button onClick={handleResend} className="dp-auth-link dp-auth-link-strong">
               Resend code
             </button>
           </p>
 
           {/* Back */}
-          <button
-            onClick={() => router.push('/auth/login')}
-            className="w-full text-center text-white/25 hover:text-white/50 text-xs mt-3 transition-colors"
-          >
-            ← Back to sign in
-          </button>
+          <p style={{ textAlign: 'center', marginTop: 12 }}>
+            <button onClick={() => router.push('/auth/login')} className="dp-auth-link">
+              ← Back to sign in
+            </button>
+          </p>
         </div>
       </div>
     </div>

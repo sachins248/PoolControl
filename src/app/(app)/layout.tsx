@@ -1,6 +1,7 @@
 import { requireUser } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/sidebar'
+import '../app.css'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireUser()
@@ -27,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="app-root flex min-h-screen">
       <Sidebar
         facilityName={facilityName}
         userRole={profile.role}
