@@ -15,7 +15,7 @@ export default function ScrollReveal() {
       },
       { threshold: 0, rootMargin: '0px 0px 80px 0px' }
     )
-    document.querySelectorAll('.reveal').forEach((el) => io.observe(el))
+    document.querySelectorAll('.reveal, .lp-reveal').forEach((el) => io.observe(el))
     return () => io.disconnect()
   }, [])
 
