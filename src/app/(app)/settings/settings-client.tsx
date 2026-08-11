@@ -12,6 +12,16 @@ interface Props {
   staff: UserProfile[]
   facilityId: string
   currentUserId: string
+  currentUser: UserProfile
+}
+
+const ACCESS_LEVEL_LABELS: Record<string, string> = {
+  lifeguard: 'Lifeguard — own profile & remediations only',
+  supervisor: 'Supervisor — conducts audits, sees lifeguard schedules',
+  manager: 'Manager — full facility access incl. supervisor metrics',
+  director: 'Manager — full facility access incl. supervisor metrics',
+  corporate: 'Corporate — multi-facility reporting',
+  super_admin: 'Platform Administrator',
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -40,7 +50,7 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
   )
 }
 
-export function SettingsClient({ facility, staff, facilityId, currentUserId }: Props) {
+export function SettingsClient({ facility, staff, facilityId, currentUserId, currentUser }: Props) {
   const [tab, setTab] = useState<'roster' | 'upload' | 'notifications'>('roster')
   const [showAddForm, setShowAddForm] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -148,6 +158,29 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId }: P
     <div className="px-8 py-6 max-w-5xl">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Settings</h1>
       <p className="text-gray-500 text-sm mb-6">{facility?.name ?? 'Your Facility'}</p>
+
+      {/* Account card */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6 flex items-center justify-between gap-6">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Signed in as</p>
+          <p className="text-sm font-semibold text-gray-900">{currentUser.name}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{currentUser.email}</p>
+          <p className="text-xs text-gray-400 mt-2">
+            <span className="inline-block px-2 py-0.5 border border-gray-300 rounded text-[10px] font-semibold uppercase tracking-wide text-gray-600 mr-2">
+              {currentUser.role.replace('_', ' ')}
+            </span>
+            {ACCESS_LEVEL_LABELS[currentUser.role] ?? ''}
+          </p>
+        </div>
+        <div className="shrink-0 text-right space-y-2">
+          <p className="text-xs text-gray-400">{facility?.name}</p>
+          <div className="text-[10px] text-gray-400 space-x-2">
+            <a href="/legal/terms" className="hover:text-gray-600 underline underline-offset-2">Terms</a>
+            <a href="/legal/privacy" className="hover:text-gray-600 underline underline-offset-2">Privacy</a>
+            <a href="/legal/ai" className="hover:text-gray-600 underline underline-offset-2">AI &amp; Data</a>
+          </div>
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-gray-200">

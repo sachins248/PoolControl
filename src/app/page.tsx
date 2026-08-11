@@ -564,6 +564,9 @@ export default async function RootPage() {
           </div>
           <span className="dp-footer-copy">© {year} POOLCONTROL.AI / AQUATICS PERFORMANCE PLATFORM</span>
           <div className="dp-footer-links">
+            <a href="/legal/terms">TERMS</a>
+            <a href="/legal/privacy">PRIVACY</a>
+            <a href="/legal/ai">AI &amp; DATA</a>
             <a href="mailto:hello@poolcontrol.ai">CONTACT</a>
             <a href="/auth/login">SIGN IN</a>
             <a href="#">RESURFACE ↑</a>

@@ -10,6 +10,14 @@ const AUDIT_DISPLAY: Record<string, string> = {
   dispatch: 'Dispatch', supervisor_eavs: 'EAVS', guest_service: 'Guest Service', cleaning: 'Cleaning',
 }
 
+// Cross-facility reference points shown alongside this facility's numbers.
+// Illustrative until the multi-facility benchmark pipeline ships — labeled as such in the UI.
+const NETWORK_BENCHMARKS: Record<string, number> = {
+  scanning: 0.82, vat: 0.74, cpr_skills: 0.79, dispatch: 0.85,
+  supervisor_eavs: 0.80, guest_service: 0.88, cleaning: 0.90,
+}
+const NETWORK_OVERALL = 0.81
+
 function passRateColor(rate: number) {
   if (rate >= 0.85) return 'text-emerald-600'
   if (rate >= 0.70) return 'text-amber-500'
@@ -124,7 +132,14 @@ export default async function TeamPage() {
         <p className="text-gray-500 text-sm mt-0.5">
           {totalAudits} audits · {allLifeguards.length} lifeguards
           {overallPassRate !== null && (
-            <> · <span className={`font-medium ${passRateColor(overallPassRate)}`}>{Math.round(overallPassRate * 100)}% overall pass rate</span></>
+            <> · <span className={`font-medium ${passRateColor(overallPassRate)}`}>{Math.round(overallPassRate * 100)}% overall pass rate</span>
+              {' '}<span className="text-gray-400">
+                vs {Math.round(NETWORK_OVERALL * 100)}% network avg
+                {overallPassRate >= NETWORK_OVERALL
+                  ? <span className="text-emerald-600 font-medium"> (+{Math.round((overallPassRate - NETWORK_OVERALL) * 100)})</span>
+                  : <span className="text-red-500 font-medium"> ({Math.round((overallPassRate - NETWORK_OVERALL) * 100)})</span>}
+              </span>
+            </>
           )}
         </p>
       </div>
@@ -143,24 +158,46 @@ export default async function TeamPage() {
 
           {/* Pass rate by audit type */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Pass Rate by Audit Type</h2>
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-700">Pass Rate by Audit Type</h2>
+              <span className="text-[10px] text-gray-400 uppercase tracking-wide">▏ network avg</span>
+            </div>
             {typeStats.length === 0 ? (
               <p className="text-gray-400 text-sm">No data yet.</p>
             ) : (
               <div className="space-y-3">
-                {typeStats.map(({ type, pass, total, rate }) => (
-                  <div key={type}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-700">{AUDIT_DISPLAY[type] ?? type}</span>
-                      <span className={`text-sm font-semibold ${passRateColor(rate)}`}>
-                        {Math.round(rate * 100)}% <span className="text-gray-400 font-normal text-xs">({pass}/{total})</span>
-                      </span>
+                {typeStats.map(({ type, pass, total, rate }) => {
+                  const bench = NETWORK_BENCHMARKS[type]
+                  return (
+                    <div key={type}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-gray-700">{AUDIT_DISPLAY[type] ?? type}</span>
+                        <span className={`text-sm font-semibold ${passRateColor(rate)}`}>
+                          {Math.round(rate * 100)}%
+                          <span className="text-gray-400 font-normal text-xs"> ({pass}/{total})</span>
+                          {bench !== undefined && (
+                            <span className={`ml-1.5 text-xs font-medium ${rate >= bench ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {rate >= bench ? '+' : ''}{Math.round((rate - bench) * 100)} vs avg
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="relative w-full h-1.5 bg-gray-100 rounded-full overflow-visible">
+                        <div className={`h-full rounded-full ${passRateBar(rate)}`} style={{ width: `${rate * 100}%` }} />
+                        {bench !== undefined && (
+                          <div
+                            className="absolute top-[-3px] h-[12px] w-[2px] bg-gray-400"
+                            style={{ left: `${bench * 100}%` }}
+                            title={`Network avg ${Math.round(bench * 100)}%`}
+                          />
+                        )}
+                      </div>
                     </div>
-                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${passRateBar(rate)}`} style={{ width: `${rate * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
+                <p className="text-[10px] text-gray-400 pt-1">
+                  Network averages are illustrative pending the cross-facility benchmark integration.
+                </p>
               </div>
             )}
           </div>

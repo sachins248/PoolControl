@@ -32,10 +32,11 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isAuthRoute = pathname.startsWith('/auth')
   const isApiRoute = pathname.startsWith('/api')
+  const isLegalRoute = pathname.startsWith('/legal')
   const isLandingPage = pathname === '/'
 
   // Unauthenticated user trying to access a protected route
-  if (!user && !isAuthRoute && !isApiRoute && !isLandingPage) {
+  if (!user && !isAuthRoute && !isApiRoute && !isLegalRoute && !isLandingPage) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('next', pathname)
     return NextResponse.redirect(loginUrl)
@@ -43,7 +44,7 @@ export async function middleware(request: NextRequest) {
 
   // Trial expiry enforcement — redirect expired trial facilities to /billing
   const isBillingRoute = pathname === '/billing'
-  const isPublicRoute = isAuthRoute || isApiRoute || isBillingRoute || isLandingPage
+  const isPublicRoute = isAuthRoute || isApiRoute || isBillingRoute || isLegalRoute || isLandingPage
   if (user && !isPublicRoute) {
     const { data: profile } = await supabase
       .from('user_profiles')

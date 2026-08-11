@@ -31,6 +31,7 @@ export default async function SettingsPage() {
       staff={(staff ?? []) as UserProfile[]}
       facilityId={profile.facility_id}
       currentUserId={profile.id}
+      currentUser={profile}
     />
   )
 }

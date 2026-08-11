@@ -283,6 +283,13 @@ function LoginContent() {
         <p className="dp-auth-foot">
           Invitation only · Contact your facility director for access
         </p>
+        <p className="dp-auth-foot" style={{ marginTop: 10, opacity: 0.35 }}>
+          <a href="/legal/terms" style={{ color: 'inherit' }}>Terms</a>
+          {' · '}
+          <a href="/legal/privacy" style={{ color: 'inherit' }}>Privacy</a>
+          {' · '}
+          <a href="/legal/ai" style={{ color: 'inherit' }}>AI &amp; Data</a>
+        </p>
       </div>
     </div>
   )

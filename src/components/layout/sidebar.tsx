@@ -7,6 +7,7 @@ import {
   Users,
   BarChart3,
   CalendarDays,
+  CalendarRange,
   Plus,
   AlertTriangle,
   Settings,
@@ -14,6 +15,7 @@ import {
   User,
   GraduationCap,
   CreditCard,
+  LineChart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -30,11 +32,13 @@ interface NavItem {
 
 const ALL_NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard, roles: ['supervisor', 'manager', 'director', 'corporate'] },
-  { href: '/schedule', label: 'Daily Schedule', icon: CalendarDays, roles: ['supervisor', 'manager', 'director'] },
+  { href: '/shifts', label: 'Shift Schedule', icon: CalendarRange, roles: ['supervisor', 'manager', 'director'] },
+  { href: '/schedule', label: 'Audit Schedule', icon: CalendarDays, roles: ['supervisor', 'manager', 'director'] },
   { href: '/roster', label: 'Roster', icon: Users, roles: ['supervisor', 'manager', 'director'] },
   { href: '/audits/new', label: 'New Audit', icon: Plus, accent: true, roles: ['supervisor', 'manager', 'director'] },
   { href: '/remediation', label: 'Remediation', icon: AlertTriangle, roles: ['supervisor', 'manager', 'director'] },
   { href: '/team', label: 'Team Analysis', icon: BarChart3, roles: ['supervisor', 'manager', 'director'] },
+  { href: '/analytics', label: 'Analytics', icon: LineChart, roles: ['manager', 'director'] },
   { href: '/training', label: 'Training Plans', icon: GraduationCap, roles: ['supervisor', 'manager', 'director'] },
   { href: '/my-profile', label: 'My Profile', icon: User, roles: ['lifeguard'] },
 ]

@@ -225,11 +225,12 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
                 <EmptyState message="No certifications on record." />
               ) : (
                 <ProTable
-                  headers={['Certifying Body', 'Date Issued', 'Expiration Date', 'Status']}
+                  headers={['Certifying Body', 'Certification ID', 'Date Issued', 'Expiration Date', 'Status']}
                   rows={allCerts.map((cert: Certification) => {
                     const expired = new Date(cert.expiry) < now
                     return [
                       <span key="body" className="font-medium text-gray-900">{CERT_DISPLAY[cert.body] ?? cert.body}</span>,
+                      <span key="id" className="font-mono text-xs text-gray-600">PC-{cert.id.slice(0, 8).toUpperCase()}</span>,
                       new Date(cert.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                       new Date(cert.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                       expired
@@ -237,7 +238,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
                         : <span key="status" className="inline-flex items-center gap-1 text-emerald-600 text-xs font-semibold"><CheckCircle className="w-3 h-3" /> Active</span>,
                     ]
                   })}
-                  alignments={['left', 'left', 'left', 'center']}
+                  alignments={['left', 'left', 'left', 'left', 'center']}
                 />
               )}
             </section>
@@ -310,6 +311,40 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
                   alignments={['left', 'left', 'left', 'center', 'center', 'left']}
                 />
               )}
+            </section>
+
+            {/* ── Sections 6–8: integration-fed records ── */}
+            <section>
+              <SectionHeader
+                number={topFailures.length > 0 ? '06' : '05'}
+                title="Rescue & Save Log"
+              />
+              <p className="text-xs text-gray-400 mb-3">
+                Documented in-water rescues, dry-land saves, and assists performed by this lifeguard.
+              </p>
+              <EmptyState message="No records on file. This section is populated automatically once incident-report integration is enabled for this facility." />
+            </section>
+
+            <section>
+              <SectionHeader
+                number={topFailures.length > 0 ? '07' : '06'}
+                title="Incident & Claim History"
+              />
+              <p className="text-xs text-gray-400 mb-3">
+                Emergency medical situations, claims, and litigation events this lifeguard has been involved in, cross-referenced with audit and remediation records at the time of each event.
+              </p>
+              <EmptyState message="No records on file. This section is populated automatically once incident-report integration is enabled for this facility." />
+            </section>
+
+            <section>
+              <SectionHeader
+                number={topFailures.length > 0 ? '08' : '07'}
+                title="Medical Restrictions & Official Advisements"
+              />
+              <p className="text-xs text-gray-400 mb-3">
+                Physician-recognized restrictions and official advisements affecting duty assignment.
+              </p>
+              <EmptyState message="No restrictions or advisements on record." />
             </section>
 
             {/* ── Liability Statement ── */}
