@@ -34,6 +34,19 @@ export const trainingRatelimit = limiterFor(
   'poolcontrol:training',
 )
 
+// Public, unauthenticated join-code lookup/register — keyed by IP, not user id.
+// Higher abuse exposure than the authenticated limiters above since anyone can
+// hit these, but an 8-char/29-symbol code keyspace makes brute-forcing past
+// even this generous a limit infeasible.
+export const joinLookupRatelimit = limiterFor(
+  Ratelimit.slidingWindow(10, '10 m'),
+  'poolcontrol:join_lookup',
+)
+export const joinRegisterRatelimit = limiterFor(
+  Ratelimit.slidingWindow(5, '10 m'),
+  'poolcontrol:join_register',
+)
+
 /**
  * Check a limiter, failing open. A rate limiter that is unreachable must never
  * take the feature down with it — an outage degrades to "unlimited", not "broken".

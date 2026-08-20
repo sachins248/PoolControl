@@ -10,7 +10,7 @@ export default async function FacilityDetailPage({ params }: { params: { id: str
   const service = createServiceClient()
 
   const [{ data: facility }, { data: staff }] = await Promise.all([
-    service.from('facilities').select('id, name, plan, billing_status, trial_ends_at, created_at').eq('id', params.id).single(),
+    service.from('facilities').select('id, name, plan, billing_status, trial_ends_at, created_at, lifeguard_join_code, supervisor_join_code').eq('id', params.id).single(),
     service
       .from('user_profiles')
       .select('id, name, role, email, is_active, created_at')

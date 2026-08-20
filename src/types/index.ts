@@ -40,6 +40,8 @@ export interface Facility {
   timezone: string
   config: FacilityConfig
   created_at: string
+  lifeguard_join_code?: string | null
+  supervisor_join_code?: string | null
 }
 
 export interface FacilityConfig {
@@ -61,6 +63,8 @@ export interface UserProfile {
   created_at: string
   /** Per-lifeguard audit frequency overrides (days). Falls back to facility cadence. */
   audit_cadence_override?: Partial<Record<AuditTypeName, number>> | null
+  is_first_login: boolean
+  is_active: boolean
   // computed
   initials?: string
   avatar_color?: string

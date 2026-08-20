@@ -14,7 +14,7 @@ export default async function SettingsPage() {
 
   const { data: facility } = await supabase
     .from('facilities')
-    .select('id, name, cert_body, config')
+    .select('id, name, cert_body, config, lifeguard_join_code, supervisor_join_code')
     .eq('id', profile.facility_id)
     .single()
 

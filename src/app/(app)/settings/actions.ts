@@ -3,6 +3,18 @@
 import { revalidatePath } from 'next/cache'
 import { requireUserForAction, isManager } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/server'
+import { generateJoinCode } from '@/lib/join-code'
+
+export async function regenerateJoinCode(kind: 'lifeguard' | 'supervisor') {
+  const { profile } = await requireUserForAction()
+  if (!isManager(profile.role) || !profile.facility_id) {
+    throw new Error('Unauthorized')
+  }
+  const column = kind === 'lifeguard' ? 'lifeguard_join_code' : 'supervisor_join_code'
+  const code = await generateJoinCode(profile.facility_id, column)
+  revalidatePath('/settings')
+  return code
+}
 
 export async function addStaffMember(formData: FormData) {
   const { profile } = await requireUserForAction()

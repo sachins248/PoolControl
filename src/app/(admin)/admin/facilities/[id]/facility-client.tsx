@@ -11,6 +11,8 @@ interface Facility {
   billing_status: string
   trial_ends_at: string
   created_at: string
+  lifeguard_join_code: string | null
+  supervisor_join_code: string | null
 }
 
 interface StaffMember {
@@ -111,6 +113,21 @@ export default function FacilityClient({
           {facility.billing_status}
         </span>
         <span className="text-xs text-gray-400 ml-auto">Created {fmt(facility.created_at)}</span>
+      </div>
+
+      {/* Access codes (read-only — managed by the facility's own director in Settings) */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h2 className="font-semibold text-gray-900 mb-4">Access Codes</h2>
+        <div className="grid grid-cols-2 gap-5 text-sm">
+          <div>
+            <p className="text-xs font-medium text-gray-500 mb-1">Lifeguard code</p>
+            <code className="text-gray-900 font-mono">{facility.lifeguard_join_code ?? '—'}</code>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500 mb-1">Supervisor code</p>
+            <code className="text-gray-900 font-mono">{facility.supervisor_join_code ?? '—'}</code>
+          </div>
+        </div>
       </div>
 
       {/* Billing edit */}

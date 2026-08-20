@@ -283,6 +283,9 @@ function LoginContent() {
         <p className="dp-auth-foot">
           Invitation only · Contact your facility director for access
         </p>
+        <p className="dp-auth-foot" style={{ marginTop: 6 }}>
+          <a href="/join" style={{ color: 'inherit' }}>Have a facility access code? Join here</a>
+        </p>
         <p className="dp-auth-foot" style={{ marginTop: 10, opacity: 0.35 }}>
           <a href="/legal/terms" style={{ color: 'inherit' }}>Terms</a>
           {' · '}

@@ -1,14 +1,21 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
-import { Users, Upload, UserPlus, Trash2, CheckCircle, AlertCircle, X, Loader2, Bell } from 'lucide-react'
-import { addStaffMember, removeStaffMember, saveWebhookSettings } from './actions'
+import { Users, Upload, UserPlus, Trash2, CheckCircle, AlertCircle, X, Loader2, Bell, Copy, RefreshCw } from 'lucide-react'
+import { addStaffMember, removeStaffMember, saveWebhookSettings, regenerateJoinCode } from './actions'
 import { parseAndPreviewCSV, bulkCreateUsers } from './upload-action'
 import type { UserProfile } from '@/types'
 import type { CSVRow } from './upload-action'
 
 interface Props {
-  facility: { id: string; name: string; cert_body: string; config: any } | null
+  facility: {
+    id: string
+    name: string
+    cert_body: string
+    config: any
+    lifeguard_join_code: string | null
+    supervisor_join_code: string | null
+  } | null
   staff: UserProfile[]
   facilityId: string
   currentUserId: string
@@ -57,6 +64,13 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId, cur
   const [isPending, startTransition] = useTransition()
   const [removingId, setRemovingId] = useState<string | null>(null)
 
+  // Access codes
+  const [codes, setCodes] = useState({
+    lifeguard: facility?.lifeguard_join_code ?? null,
+    supervisor: facility?.supervisor_join_code ?? null,
+  })
+  const [regeneratingKind, setRegeneratingKind] = useState<'lifeguard' | 'supervisor' | null>(null)
+
   // Webhook state
   const config = (facility?.config ?? {}) as Record<string, string>
   const [slackUrl, setSlackUrl] = useState(config.slack_webhook_url ?? '')
@@ -101,6 +115,24 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId, cur
     } finally {
       setRemovingId(null)
     }
+  }
+
+  async function handleRegenerateCode(kind: 'lifeguard' | 'supervisor') {
+    setRegeneratingKind(kind)
+    try {
+      const code = await regenerateJoinCode(kind)
+      setCodes((c) => ({ ...c, [kind]: code }))
+      showToast(`${kind === 'lifeguard' ? 'Lifeguard' : 'Supervisor'} code regenerated.`, 'success')
+    } catch (err: any) {
+      showToast(err.message ?? 'Failed to regenerate code.', 'error')
+    } finally {
+      setRegeneratingKind(null)
+    }
+  }
+
+  function handleCopyCode(code: string) {
+    navigator.clipboard.writeText(code)
+    showToast('Code copied.', 'success')
   }
 
   async function handleSaveWebhooks(e: React.FormEvent) {
@@ -215,6 +247,46 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId, cur
               <UserPlus className="w-4 h-4" />
               Add Person
             </button>
+          </div>
+
+          {/* Access codes */}
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-5">
+            <h3 className="font-semibold text-gray-900 text-sm mb-1">Access Codes</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Staff can join your facility themselves at <span className="font-mono">/join</span> using one of these codes.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              {(['lifeguard', 'supervisor'] as const).map((kind) => (
+                <div key={kind} className="bg-white border border-gray-200 rounded-lg p-4">
+                  <p className="text-xs font-medium text-gray-600 mb-2 capitalize">{kind} code</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <code className="flex-1 text-sm font-mono font-semibold text-gray-900 tracking-wider bg-gray-50 border border-gray-200 rounded px-2 py-1.5">
+                      {codes[kind] ?? '—'}
+                    </code>
+                    {codes[kind] && (
+                      <button
+                        onClick={() => handleCopyCode(codes[kind]!)}
+                        className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors"
+                        title="Copy code"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleRegenerateCode(kind)}
+                      disabled={regeneratingKind === kind}
+                      className="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-40 transition-colors"
+                      title={codes[kind] ? 'Regenerate code' : 'Generate code'}
+                    >
+                      {regeneratingKind === kind ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-400">
+                    Anyone with this code can join as {kind} — regenerate if it&apos;s been shared too widely.
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Add form */}

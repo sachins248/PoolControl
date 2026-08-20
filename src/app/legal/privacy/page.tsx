@@ -40,7 +40,7 @@ export default function PrivacyPage() {
         <li>Row-level security isolating every facility&apos;s records at the database layer.</li>
         <li>Role-based access control within each facility (lifeguard / supervisor / manager).</li>
         <li>Immutable audit records — submitted audits cannot be altered, preserving evidentiary integrity.</li>
-        <li>Invitation-only accounts administered by the facility; no self-service signup.</li>
+        <li>Staff accounts are created by facility administrators or via a facility-specific access code; access codes are managed and can be rotated by the facility at any time.</li>
         <li>Independent security certification (SOC 2) is on our compliance roadmap.</li>
       </ul>
 

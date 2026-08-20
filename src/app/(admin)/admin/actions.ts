@@ -2,6 +2,7 @@
 
 import { requireUserForAction, isSuperAdmin } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/server'
+import { generateJoinCode } from '@/lib/join-code'
 import { revalidatePath } from 'next/cache'
 
 async function assertSuperAdmin() {
@@ -29,6 +30,11 @@ export async function onboardFacility(
       .single()
     if (facilityError) throw new Error(facilityError.message)
     facilityId = facility.id
+
+    // 1b. Auto-generate both join codes so the facility is turnkey — the
+    // director never has to click "generate" before staff can self-join.
+    await generateJoinCode(facility.id, 'lifeguard_join_code')
+    await generateJoinCode(facility.id, 'supervisor_join_code')
 
     // 2. Create auth user (email pre-confirmed — no verification needed)
     const { data: authData, error: authError } = await service.auth.admin.createUser({
