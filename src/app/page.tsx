@@ -2,6 +2,7 @@ import './landing.css'
 import { getServerUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import LandingFx from '@/components/landing-fx'
+import MobileNav from '@/components/mobile-nav'
 
 const MAIL_TRIAL =
   "mailto:hello@poolcontrol.ai?subject=Start Free Trial&body=Hi, I'd like to start a 14-day free trial.%0A%0AFacility name:%0AYour name:%0APhone:"
@@ -143,6 +144,7 @@ export default async function RootPage() {
           <a href="/auth/login" className="dp-nav-signin">SIGN IN</a>
           <a href={MAIL_DEMO} className="dp-nav-demo">REQUEST DEMO<span aria-hidden="true">&nbsp;→</span></a>
         </div>
+        <MobileNav mailDemo={MAIL_DEMO} />
       </nav>
 
       {/* ── Hero / surface ── */}
@@ -549,6 +551,30 @@ export default async function RootPage() {
             <p>See PoolControl.ai in action with a live walkthrough of your use case.</p>
             <span className="dp-card-link">Schedule a demo <span aria-hidden="true">→</span></span>
           </a>
+        </div>
+
+        <div className="dp-team-divider dp-reveal">
+          <span className="dp-team-divider-label">THE TEAM</span>
+        </div>
+        <div className="dp-team-grid">
+          <div className="dp-team-card dp-reveal dp-d1">
+            <Ticks />
+            <img src="/team-nathan.jpg" alt="Nathan Rusch" className="dp-team-photo" />
+            <h3>Nathan Rusch</h3>
+            <p className="dp-team-role">Founder / CEO</p>
+            <a href="mailto:poolcontrolnate@gmail.com" className="dp-card-link">
+              poolcontrolnate@gmail.com <span aria-hidden="true">→</span>
+            </a>
+          </div>
+          <div className="dp-team-card dp-reveal dp-d2">
+            <Ticks />
+            <img src="/team-sachin.jpg" alt="Sachin Selvakumar" className="dp-team-photo" />
+            <h3>Sachin Selvakumar</h3>
+            <p className="dp-team-role">Co-Founder / CTO</p>
+            <a href="mailto:sachin.selvakumar24@gmail.com" className="dp-card-link">
+              sachin.selvakumar24@gmail.com <span aria-hidden="true">→</span>
+            </a>
+          </div>
         </div>
       </section>
 
