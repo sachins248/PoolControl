@@ -5,9 +5,9 @@ import LandingFx from '@/components/landing-fx'
 import MobileNav from '@/components/mobile-nav'
 
 const MAIL_TRIAL =
-  "mailto:hello@poolcontrol.ai?subject=Start Free Trial&body=Hi, I'd like to start a 14-day free trial.%0A%0AFacility name:%0AYour name:%0APhone:"
+  "mailto:poolcontrolnate@gmail.com?subject=Start Free Trial&body=Hi, I'd like to start a 14-day free trial.%0A%0AFacility name:%0AYour name:%0APhone:"
 const MAIL_DEMO =
-  "mailto:hello@poolcontrol.ai?subject=Request a Demo&body=Hi, I'd like to schedule a demo.%0A%0AFacility name:%0AYour name:%0AAvailability:"
+  "mailto:poolcontrolnate@gmail.com?subject=Request a Demo&body=Hi, I'd like to schedule a demo.%0A%0AFacility name:%0AYour name:%0AAvailability:"
 const TEL = 'tel:+19406003636'
 
 /* Letter-by-letter "surfacing" headline */
@@ -535,7 +535,7 @@ export default async function RootPage() {
             <span className="dp-card-no">A/</span>
             <h3>START FREE TRIAL</h3>
             <p>Email us and we&apos;ll have your facility set up within 24 hours.</p>
-            <span className="dp-card-link">hello@poolcontrol.ai <span aria-hidden="true">→</span></span>
+            <span className="dp-card-link">poolcontrolnate@gmail.com <span aria-hidden="true">→</span></span>
           </a>
           <a href={TEL} className="dp-card dp-reveal dp-d2">
             <Ticks />
@@ -593,7 +593,7 @@ export default async function RootPage() {
             <a href="/legal/terms">TERMS</a>
             <a href="/legal/privacy">PRIVACY</a>
             <a href="/legal/ai">AI &amp; DATA</a>
-            <a href="mailto:hello@poolcontrol.ai">CONTACT</a>
+            <a href="mailto:poolcontrolnate@gmail.com">CONTACT</a>
             <a href="/auth/login">SIGN IN</a>
             <a href="#">RESURFACE ↑</a>
           </div>

@@ -103,7 +103,7 @@ export default async function BillingPage() {
                 <p className="text-xs text-gray-400 mt-0.5">Your data is kept for 30 days</p>
               </div>
               <a
-                href={`mailto:hello@poolcontrol.ai?subject=Cancel trial — ${facility?.name}&body=Hi, I'd like to cancel the trial for ${facility?.name}. Please confirm.`}
+                href={`mailto:poolcontrolnate@gmail.com?subject=Cancel trial — ${facility?.name}&body=Hi, I'd like to cancel the trial for ${facility?.name}. Please confirm.`}
                 className="text-xs text-red-500 hover:text-red-600 font-semibold border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition-colors"
               >
                 Request cancel
@@ -127,7 +127,7 @@ export default async function BillingPage() {
                 : "We'll send a contract and get you fully set up. No hidden fees."}
             </p>
             <a
-              href={`mailto:hello@poolcontrol.ai?subject=${isExpired ? 'Restore access' : 'Ready to continue'} — ${facility?.name}&body=Hi, ${isExpired ? `our trial for ${facility?.name} has expired and we'd like to restore access.` : `we'd like to continue using PoolControl.ai. Please send the contract for ${facility?.name}.`}`}
+              href={`mailto:poolcontrolnate@gmail.com?subject=${isExpired ? 'Restore access' : 'Ready to continue'} — ${facility?.name}&body=Hi, ${isExpired ? `our trial for ${facility?.name} has expired and we'd like to restore access.` : `we'd like to continue using PoolControl.ai. Please send the contract for ${facility?.name}.`}`}
               className="block w-full bg-white text-emerald-600 text-sm font-bold text-center py-2.5 rounded-xl hover:bg-emerald-50 transition-colors"
             >
               Contact us

@@ -41,3 +41,4 @@ next-env.d.ts
 
 # local scratch
 poolcontrol_chat_export.txt
+.env*

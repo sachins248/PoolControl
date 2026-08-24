@@ -61,7 +61,7 @@ export default function PrivacyPage() {
 
       <h2>7. Contact</h2>
       <p>
-        Privacy questions: <strong>hello@poolcontrol.ai</strong>
+        Privacy questions: <strong>poolcontrolnate@gmail.com</strong>
       </p>
 
       <div className="dp-legal-foot">

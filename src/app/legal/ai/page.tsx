@@ -54,7 +54,7 @@ export default function AIPage() {
 
       <h2>6. Contact</h2>
       <p>
-        Questions about AI practices: <strong>hello@poolcontrol.ai</strong>
+        Questions about AI practices: <strong>poolcontrolnate@gmail.com</strong>
       </p>
 
       <div className="dp-legal-foot">

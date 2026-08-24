@@ -71,7 +71,7 @@ export default function TermsPage() {
 
       <h2>7. Contact</h2>
       <p>
-        Questions about these terms: <strong>hello@poolcontrol.ai</strong>
+        Questions about these terms: <strong>poolcontrolnate@gmail.com</strong>
       </p>
 
       <div className="dp-legal-foot">
