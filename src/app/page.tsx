@@ -167,20 +167,35 @@ export default async function RootPage() {
         </h1>
 
         <div className="dp-hero-low">
-          <p className="dp-hero-sub">
-            PoolControl.ai is the audit platform for aquatic facilities.
-            Document <em>every</em> evaluation. Track <em>every</em> failure.
-            Prove you run a safe facility — <em>before</em> you ever need to.
-          </p>
-          <div className="dp-hero-cta">
-            <a href={MAIL_TRIAL} className="dp-btn dp-btn-solid">
-              START FREE TRIAL <span aria-hidden="true">→</span>
-            </a>
-            <a href={TEL} className="dp-btn dp-btn-line">
-              TALK TO US — (940) 600-3636
-            </a>
-            <p className="dp-hero-note">14-DAY TRIAL · NO CREDIT CARD · WHITE-GLOVE SETUP</p>
+          <div className="dp-hero-lead">
+            <p className="dp-hero-sub">
+              PoolControl.ai is the audit platform for aquatic facilities.
+              Document <em>every</em> evaluation. Track <em>every</em> failure.
+              Prove you run a safe facility — <em>before</em> you ever need to.
+            </p>
+            <div className="dp-hero-cta">
+              <a href={MAIL_TRIAL} className="dp-btn dp-btn-solid">
+                START FREE TRIAL <span aria-hidden="true">→</span>
+              </a>
+              <a href={TEL} className="dp-btn dp-btn-line">
+                TALK TO US — (940) 600-3636
+              </a>
+              <p className="dp-hero-note">14-DAY TRIAL · NO CREDIT CARD · WHITE-GLOVE SETUP</p>
+            </div>
           </div>
+
+          <figure className="dp-photo-frame dp-hero-photo dp-reveal dp-d2">
+            <Ticks />
+            <img
+              src="/photo-hero-tower.jpg"
+              alt="A lifeguard seated in an elevated chair above a pool, rescue tube across the rail"
+              className="dp-photo dp-photo--ink"
+            />
+            <figcaption className="dp-photo-cap">
+              <span><b>FIG. 00</b> / SURFACE WATCH — TOWER 3</span>
+              <i>0.0M</i>
+            </figcaption>
+          </figure>
         </div>
 
         <div className="dp-hero-base" aria-hidden="true">
@@ -219,6 +234,19 @@ export default async function RootPage() {
           <div className="dp-stat-label">FROM SIGN-UP TO FIRST LIVE AUDIT</div>
         </div>
       </section>
+
+      {/* ── Photo band — main deck ── */}
+      <div className="dp-photoband dp-photoband--deck">
+        <img
+          src="/photo-deck-aerial.jpg"
+          alt="Aerial view of an aquatic facility: slides, lazy river, and multiple pool decks"
+          className="dp-photo dp-photo--ink"
+        />
+        <div className="dp-photoband-cap">
+          <span><b>SITE DOCUMENTATION</b> / MAIN DECK — 09:40</span>
+          <i>DEPTH −01.0M</i>
+        </div>
+      </div>
 
       {/* ── Protocol 01 — Structured audits (above water) ── */}
       <section id="protocol-01" className="dp-sect dp-sect-light">
@@ -427,6 +455,19 @@ export default async function RootPage() {
         </div>
       </section>
 
+      {/* ── Photo band — below the surface ── */}
+      <div className="dp-photoband dp-photoband--deep">
+        <img
+          src="/photo-underwater.jpg"
+          alt="Swimming pool lane lines seen across still blue water"
+          className="dp-photo dp-photo--aqua"
+        />
+        <div className="dp-photoband-cap">
+          <span><b>BELOW THE SURFACE</b> / LANE 4</span>
+          <i>−07.0M</i>
+        </div>
+      </div>
+
       {/* ── By the numbers ── */}
       <section className="dp-numbers dp-depth-7">
         <SectionTag depth="−07.5M" code="INDEX" title="BY THE NUMBERS" />
@@ -466,6 +507,26 @@ export default async function RootPage() {
               <p>{p}</p>
               <i className="dp-step-arrow" aria-hidden="true">→</i>
             </div>
+          ))}
+        </div>
+
+        <div className="dp-sheet">
+          {([
+            ['A', 'RESCUE READY', 'EQUIPMENT CHECK', '/photo-exhibit-a.jpg', 'A ring buoy mounted on the wall of a pool house'],
+            ['B', 'ACTIVE SWIM ZONE', 'LANE TRAFFIC', '/photo-exhibit-b.jpg', 'A swimmer mid-stroke between lane lines'],
+            ['C', 'DECK ORDER', 'PRE-OPEN SWEEP', '/photo-exhibit-c.jpg', 'An empty competition pool deck with starting blocks and lane signage'],
+          ] as const).map(([letter, title, sub, src, alt], i) => (
+            <figure
+              key={letter}
+              className={`dp-photo-frame dp-photo-frame--deep dp-sheet-item dp-reveal dp-d${i + 1}`}
+            >
+              <Ticks />
+              <img src={src} alt={alt} className="dp-photo dp-photo--aqua" />
+              <figcaption className="dp-photo-cap">
+                <span><b>EXHIBIT {letter}</b> — {title}</span>
+                <i>{sub}</i>
+              </figcaption>
+            </figure>
           ))}
         </div>
       </section>
