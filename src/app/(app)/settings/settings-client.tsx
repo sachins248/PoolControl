@@ -1,11 +1,27 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
-import { Users, Upload, UserPlus, Trash2, CheckCircle, AlertCircle, X, Loader2, Bell, Copy, RefreshCw } from 'lucide-react'
-import { addStaffMember, removeStaffMember, saveWebhookSettings, regenerateJoinCode } from './actions'
+import { Users, Upload, UserPlus, Trash2, CheckCircle, AlertCircle, X, Loader2, Bell, Copy, RefreshCw, CalendarRange, Plus } from 'lucide-react'
+import { addStaffMember, removeStaffMember, saveWebhookSettings, regenerateJoinCode, saveShiftTypes } from './actions'
 import { parseAndPreviewCSV, bulkCreateUsers } from './upload-action'
-import type { UserProfile } from '@/types'
+import type { UserProfile, ShiftType } from '@/types'
 import type { CSVRow } from './upload-action'
+
+const DEFAULT_SHIFT_TYPES: ShiftType[] = [
+  { code: 'O', label: 'Open', start: '09:30', end: '16:00', color: 'emerald' },
+  { code: 'M', label: 'Mid', start: '11:00', end: '19:00', color: 'blue' },
+  { code: 'C', label: 'Close', start: '14:00', end: '21:30', color: 'purple' },
+]
+
+const SHIFT_COLORS: ShiftType['color'][] = ['emerald', 'blue', 'purple', 'amber', 'rose']
+
+const SHIFT_DOT: Record<ShiftType['color'], string> = {
+  emerald: 'bg-emerald-400',
+  blue: 'bg-blue-400',
+  purple: 'bg-purple-400',
+  amber: 'bg-amber-400',
+  rose: 'bg-rose-400',
+}
 
 interface Props {
   facility: {
@@ -58,7 +74,7 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
 }
 
 export function SettingsClient({ facility, staff, facilityId, currentUserId, currentUser }: Props) {
-  const [tab, setTab] = useState<'roster' | 'upload' | 'notifications'>('roster')
+  const [tab, setTab] = useState<'roster' | 'upload' | 'notifications' | 'scheduling'>('roster')
   const [showAddForm, setShowAddForm] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -72,10 +88,16 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId, cur
   const [regeneratingKind, setRegeneratingKind] = useState<'lifeguard' | 'supervisor' | null>(null)
 
   // Webhook state
-  const config = (facility?.config ?? {}) as Record<string, string>
+  const config = (facility?.config ?? {}) as Record<string, any>
   const [slackUrl, setSlackUrl] = useState(config.slack_webhook_url ?? '')
   const [teamsUrl, setTeamsUrl] = useState(config.teams_webhook_url ?? '')
   const [webhookPending, startWebhookTransition] = useTransition()
+
+  // Shift type state
+  const [shiftTypes, setShiftTypes] = useState<ShiftType[]>(
+    config.shift_types && config.shift_types.length > 0 ? config.shift_types : DEFAULT_SHIFT_TYPES
+  )
+  const [shiftTypesPending, startShiftTypesTransition] = useTransition()
 
   // CSV state
   const [csvRows, setCSVRows] = useState<CSVRow[]>([])
@@ -143,6 +165,32 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId, cur
         showToast('Notification settings saved.', 'success')
       } catch (err: any) {
         showToast(err.message ?? 'Failed to save settings.', 'error')
+      }
+    })
+  }
+
+  function updateShiftType(index: number, patch: Partial<ShiftType>) {
+    setShiftTypes((types) => types.map((t, i) => (i === index ? { ...t, ...patch } : t)))
+  }
+
+  function addShiftType() {
+    setShiftTypes((types) => [
+      ...types,
+      { code: '', label: '', start: '09:00', end: '17:00', color: SHIFT_COLORS[types.length % SHIFT_COLORS.length] },
+    ])
+  }
+
+  function removeShiftType(index: number) {
+    setShiftTypes((types) => types.filter((_, i) => i !== index))
+  }
+
+  function handleSaveShiftTypes() {
+    startShiftTypesTransition(async () => {
+      try {
+        await saveShiftTypes(shiftTypes)
+        showToast('Shift types saved.', 'success')
+      } catch (err: any) {
+        showToast(err.message ?? 'Failed to save shift types.', 'error')
       }
     })
   }
@@ -220,6 +268,7 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId, cur
           { key: 'roster', label: 'Roster', icon: <Users className="w-4 h-4" /> },
           { key: 'upload', label: 'Bulk Upload', icon: <Upload className="w-4 h-4" /> },
           { key: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
+          { key: 'scheduling', label: 'Scheduling', icon: <CalendarRange className="w-4 h-4" /> },
         ].map(({ key, label, icon }) => (
           <button
             key={key}
@@ -577,6 +626,86 @@ export function SettingsClient({ facility, staff, facilityId, currentUserId, cur
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Scheduling Tab */}
+      {tab === 'scheduling' && (
+        <div className="max-w-2xl space-y-5">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Shift Types</h2>
+            <p className="text-sm text-gray-500">
+              These are the shifts your team can assign on the Shift Schedule page. Add, rename, or retime them to match how your facility actually runs.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {shiftTypes.map((s, i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3">
+                <div className="flex gap-1">
+                  {SHIFT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => updateShiftType(i, { color: c })}
+                      className={`w-5 h-5 rounded-full border-2 ${SHIFT_DOT[c]} ${s.color === c ? 'border-gray-900' : 'border-transparent'}`}
+                      title={c}
+                    />
+                  ))}
+                </div>
+                <input
+                  value={s.code}
+                  onChange={(e) => updateShiftType(i, { code: e.target.value.toUpperCase().slice(0, 4) })}
+                  placeholder="O"
+                  className="w-14 px-2 py-2 border border-gray-300 rounded-lg text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+                <input
+                  value={s.label}
+                  onChange={(e) => updateShiftType(i, { label: e.target.value })}
+                  placeholder="Open"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+                <input
+                  type="time"
+                  value={s.start}
+                  onChange={(e) => updateShiftType(i, { start: e.target.value })}
+                  className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+                <span className="text-gray-400 text-sm">–</span>
+                <input
+                  type="time"
+                  value={s.end}
+                  onChange={(e) => updateShiftType(i, { end: e.target.value })}
+                  className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+                <button
+                  onClick={() => removeShiftType(i)}
+                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                  title="Remove shift type"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <button
+              onClick={addShiftType}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add shift type
+            </button>
+            <button
+              onClick={handleSaveShiftTypes}
+              disabled={shiftTypesPending}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {shiftTypesPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {shiftTypesPending ? 'Saving...' : 'Save Shift Types'}
+            </button>
+          </div>
         </div>
       )}
 

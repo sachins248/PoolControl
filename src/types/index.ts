@@ -48,6 +48,26 @@ export interface FacilityConfig {
   remediation_deadline_hours: number // default 48
   audit_cadence: Record<AuditTypeName, number> // days between required audits
   zones: string[]
+  shift_types?: ShiftType[]
+}
+
+export interface ShiftType {
+  code: string
+  label: string
+  start: string // "HH:MM"
+  end: string
+  color: 'emerald' | 'blue' | 'purple' | 'amber' | 'rose'
+}
+
+export interface ShiftAssignment {
+  id: string
+  facility_id: string
+  lifeguard_id: string
+  work_date: string
+  shift_code: string | null
+  start_time: string | null
+  end_time: string | null
+  is_published: boolean
 }
 
 export interface UserProfile {

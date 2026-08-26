@@ -113,3 +113,93 @@ export async function sendAuditFailureWebhooks(
 
   await Promise.allSettled(sends)
 }
+
+interface SchedulePublishedPayload {
+  startDate: string
+  endDate: string
+  facilityName: string
+}
+
+function buildScheduleSlackPayload(p: SchedulePublishedPayload): object {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  return {
+    blocks: [
+      {
+        type: 'header',
+        text: { type: 'plain_text', text: '📅 New Shift Schedule Published' },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `Shifts for *${p.startDate} – ${p.endDate}* are live.\n_${p.facilityName}_`,
+        },
+      },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: 'View Schedule' },
+            url: `${appUrl}/shifts`,
+          },
+        ],
+      },
+    ],
+  }
+}
+
+function buildScheduleTeamsPayload(p: SchedulePublishedPayload): object {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  return {
+    '@type': 'MessageCard',
+    '@context': 'http://schema.org/extensions',
+    summary: 'New Shift Schedule Published',
+    themeColor: '45E0CE',
+    title: '📅 New Shift Schedule Published',
+    sections: [
+      {
+        facts: [
+          { name: 'Facility', value: p.facilityName },
+          { name: 'Range', value: `${p.startDate} – ${p.endDate}` },
+        ],
+      },
+    ],
+    potentialAction: [
+      {
+        '@type': 'OpenUri',
+        name: 'View Schedule',
+        targets: [{ os: 'default', uri: `${appUrl}/shifts` }],
+      },
+    ],
+  }
+}
+
+export async function sendSchedulePublishedWebhooks(
+  webhookUrls: { slack?: string | null; teams?: string | null },
+  payload: SchedulePublishedPayload,
+): Promise<void> {
+  const sends: Promise<void>[] = []
+
+  if (webhookUrls.slack) {
+    sends.push(
+      fetch(webhookUrls.slack, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildScheduleSlackPayload(payload)),
+      }).then(() => {}).catch(() => {}),
+    )
+  }
+
+  if (webhookUrls.teams) {
+    sends.push(
+      fetch(webhookUrls.teams, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildScheduleTeamsPayload(payload)),
+      }).then(() => {}).catch(() => {}),
+    )
+  }
+
+  await Promise.allSettled(sends)
+}

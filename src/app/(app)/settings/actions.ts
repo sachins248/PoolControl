@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { requireUserForAction, isManager } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { generateJoinCode } from '@/lib/join-code'
+import type { ShiftType } from '@/types'
 
 export async function regenerateJoinCode(kind: 'lifeguard' | 'supervisor') {
   const { profile } = await requireUserForAction()
@@ -103,6 +104,41 @@ export async function saveWebhookSettings(slackUrl: string, teamsUrl: string) {
   if (error) throw new Error(error.message)
 
   revalidatePath('/settings')
+}
+
+export async function saveShiftTypes(shiftTypes: ShiftType[]) {
+  const { profile } = await requireUserForAction()
+  if (!isManager(profile.role) || !profile.facility_id) throw new Error('Unauthorized')
+
+  const cleaned = shiftTypes
+    .map((s) => ({
+      code: s.code.trim().toUpperCase().slice(0, 4),
+      label: s.label.trim(),
+      start: s.start,
+      end: s.end,
+      color: s.color,
+    }))
+    .filter((s) => s.code && s.label)
+
+  const serviceClient = createServiceClient()
+
+  const { data: facility } = await serviceClient
+    .from('facilities')
+    .select('config')
+    .eq('id', profile.facility_id)
+    .single()
+
+  const existingConfig = (facility?.config ?? {}) as Record<string, unknown>
+
+  const { error } = await serviceClient
+    .from('facilities')
+    .update({ config: { ...existingConfig, shift_types: cleaned } })
+    .eq('id', profile.facility_id)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/settings')
+  revalidatePath('/shifts')
 }
 
 export async function removeStaffMember(userId: string) {
