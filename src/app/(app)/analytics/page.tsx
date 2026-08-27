@@ -2,7 +2,7 @@ import { requireUser, isManager } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AnalyticsClient } from './analytics-client'
-import type { AuditTypeName } from '@/types'
+import type { AuditTypeName, LiabilityModel } from '@/types'
 
 export interface TrendBucket {
   label: string
@@ -16,7 +16,12 @@ export interface GuardSeries {
   points: { daysAgo: number; score: number; passed: boolean; type: string }[]
 }
 
-export interface RemediationArc {
+/**
+ * A fail → later-pass pair on the same criterion for the same guard.
+ * Inferred purely from consecutive `audits` rows — it never consults
+ * `remediation_tasks`, so it is a *recovery*, not a verified remediation.
+ */
+export interface RecoveryArc {
   guardName: string
   type: string
   before: number
@@ -34,7 +39,7 @@ export default async function AnalyticsPage() {
 
   const supabase = createClient()
 
-  const [{ data: audits }, { data: guards }] = await Promise.all([
+  const [{ data: audits }, { data: guards }, { data: facility }] = await Promise.all([
     supabase
       .from('audits')
       .select('lifeguard_id, audit_type_name, score, passed, submitted_at')
@@ -49,7 +54,14 @@ export default async function AnalyticsPage() {
       .eq('facility_id', profile.facility_id)
       .eq('role', 'lifeguard')
       .eq('is_active', true),
+    supabase
+      .from('facilities')
+      .select('config')
+      .eq('id', profile.facility_id)
+      .single(),
   ])
+
+  const liabilityModel = (facility?.config?.liability_model ?? null) as LiabilityModel | null
 
   const guardName = new Map((guards ?? []).map((g) => [g.id, g.name]))
   const rows = (audits ?? []).filter((a) => guardName.has(a.lifeguard_id))
@@ -93,8 +105,8 @@ export default async function AnalyticsPage() {
     .filter((g) => g.points.length >= 4)
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  // ── Remediation arcs: failed audit → later passed audit of the same type ───
-  const arcs: RemediationArc[] = []
+  // ── Recovery arcs: failed audit → later passed audit of the same type ──────
+  const arcs: RecoveryArc[] = []
   for (const g of Array.from(byGuard.values())) {
     for (const type of CORE_TYPES) {
       const seq = g.points
@@ -135,6 +147,8 @@ export default async function AnalyticsPage() {
       teamAfter={passRate(recent)}
       windowDays={Math.round(oldest)}
       totalAudits={rows.length}
+      liabilityModel={liabilityModel}
+      canConfigure={isManager(profile.role)}
     />
   )
 }

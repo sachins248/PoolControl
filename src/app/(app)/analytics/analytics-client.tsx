@@ -1,8 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { FlaskConical, TrendingUp, ShieldCheck } from 'lucide-react'
-import type { TrendBucket, GuardSeries, RemediationArc } from './page'
+import { useState, useTransition } from 'react'
+import { FlaskConical, TrendingUp, ShieldCheck, Loader2, Settings2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { saveLiabilityModel, clearLiabilityModel } from './actions'
+import type { TrendBucket, GuardSeries, RecoveryArc } from './page'
+import type { LiabilityModel } from '@/types'
 
 const AQUA = '#45e0ce'
 const SIGNAL = '#ff4a1a'
@@ -13,18 +16,17 @@ const TYPE_LABEL: Record<string, string> = {
   scanning: 'Scanning', vat: 'VAT', cpr_skills: 'CPR / Skills', dispatch: 'Dispatch',
 }
 
-// Illustrative actuarial inputs for the projection panel — clearly labeled in the UI.
-const AVG_CLAIM_COST = 85_000
-const CLAIM_PROBABILITY_REDUCTION = 0.35
-
 interface Props {
   trends: Record<string, TrendBucket[]>
   guardSeries: GuardSeries[]
-  arcs: RemediationArc[]
+  arcs: RecoveryArc[]
   teamBefore: number
   teamAfter: number
   windowDays: number
   totalAudits: number
+  /** Facility-supplied actuarial inputs. Null until someone enters them. */
+  liabilityModel: LiabilityModel | null
+  canConfigure: boolean
 }
 
 /* ── Small-multiple trend line (single aqua series — no legend needed) ─────── */
@@ -117,8 +119,8 @@ function GuardChart({ guard }: { guard: GuardSeries }) {
   )
 }
 
-/* ── Remediation impact: before/after paired bars ──────────────────────────── */
-function ArcRow({ arc }: { arc: RemediationArc }) {
+/* ── Recovery impact: before/after paired bars ─────────────────────────────── */
+function ArcRow({ arc }: { arc: RecoveryArc }) {
   const pct = (v: number) => `${((v / 5) * 100).toFixed(0)}%`
   return (
     <div className="py-3 border-t border-gray-100 first:border-0">
@@ -126,7 +128,7 @@ function ArcRow({ arc }: { arc: RemediationArc }) {
         <p className="text-xs font-medium text-gray-900">
           {arc.guardName} <span className="text-gray-400">· {TYPE_LABEL[arc.type] ?? arc.type}</span>
         </p>
-        <p className="text-[10px] text-gray-400">remediated → re-audited in {arc.daysBetween}d</p>
+        <p className="text-[10px] text-gray-400">re-audited {arc.daysBetween}d later</p>
       </div>
       <div className="space-y-1">
         <div className="flex items-center gap-2">
@@ -148,15 +150,160 @@ function ArcRow({ arc }: { arc: RemediationArc }) {
   )
 }
 
+/* ── Facility-supplied actuarial inputs ────────────────────────────────────────
+   There is deliberately no default. An invented claim cost rendered as a hard
+   dollar figure is the kind of number that ends up in a carrier conversation or
+   a deposition, so the panel stays blank until a facility enters figures it can
+   defend and attribute.                                                        */
+function LiabilityModelConfig({
+  model, canConfigure,
+}: { model: LiabilityModel | null; canConfigure: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [cost, setCost] = useState(model ? String(model.avg_claim_cost) : '')
+  const [pct, setPct] = useState(model ? String(Math.round(model.claim_probability_reduction * 100)) : '')
+  const [source, setSource] = useState(model?.source ?? '')
+  const [pending, startTransition] = useTransition()
+
+  function handleSave() {
+    startTransition(async () => {
+      const res = await saveLiabilityModel({
+        avgClaimCost: Number(cost),
+        claimProbabilityReduction: Number(pct) / 100,
+        source,
+      })
+      if (res.error) toast.error(res.error)
+      else { toast.success('Liability model saved.'); setOpen(false) }
+    })
+  }
+
+  function handleClear() {
+    startTransition(async () => {
+      const res = await clearLiabilityModel()
+      if (res.error) toast.error(res.error)
+      else { toast.success('Liability model cleared.'); setCost(''); setPct(''); setSource(''); setOpen(false) }
+    })
+  }
+
+  if (!canConfigure) {
+    return (
+      <p className="mt-4 text-[10px] text-gray-400">
+        {model
+          ? `Model: ${fmtUsd(model.avg_claim_cost)} avg. claim × ${Math.round(model.claim_probability_reduction * 100)}% reduction${model.source ? ` · ${model.source}` : ''}`
+          : 'No liability model configured for this facility.'}
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-4 bg-white border border-gray-200 rounded-xl p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+            <Settings2 className="w-3.5 h-3.5 text-gray-400" />
+            Actuarial inputs
+          </p>
+          <p className="text-[11px] text-gray-500 mt-1">
+            {model ? (
+              <>
+                {fmtUsd(model.avg_claim_cost)} average defended claim ×{' '}
+                {Math.round(model.claim_probability_reduction * 100)}% reduction per corrected deficiency
+                {model.source && <> · <span className="text-gray-400">{model.source}</span></>}
+                {model.updated_by_name && (
+                  <span className="text-gray-400"> · set by {model.updated_by_name}</span>
+                )}
+              </>
+            ) : (
+              <>Get these from your carrier or broker. Until they&apos;re entered, no dollar figures are shown.</>
+            )}
+          </p>
+        </div>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="shrink-0 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          {open ? 'Cancel' : model ? 'Edit' : 'Configure'}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-3 items-end">
+          <div>
+            <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-widest mb-1">
+              Avg. defended claim (USD)
+            </label>
+            <input
+              type="number" min="1" value={cost} onChange={(e) => setCost(e.target.value)}
+              placeholder="e.g. 85000"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-widest mb-1">
+              Claim-probability reduction (%)
+            </label>
+            <input
+              type="number" min="1" max="100" value={pct} onChange={(e) => setPct(e.target.value)}
+              placeholder="e.g. 35"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-widest mb-1">
+              Source
+            </label>
+            <input
+              value={source} onChange={(e) => setSource(e.target.value)}
+              placeholder="e.g. Carrier renewal packet 2026"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            />
+          </div>
+          <div className="col-span-3 flex items-center justify-end gap-2">
+            {model && (
+              <button
+                onClick={handleClear} disabled={pending}
+                className="px-3 py-2 text-xs text-gray-500 hover:text-red-500 disabled:opacity-50 transition-colors"
+              >
+                Clear model
+              </button>
+            )}
+            <button
+              onClick={handleSave} disabled={pending}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Save model
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const fmtUsd = (n: number) =>
+  n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+
 export function AnalyticsClient({
   trends, guardSeries, arcs, teamBefore, teamAfter, windowDays, totalAudits,
+  liabilityModel, canConfigure,
 }: Props) {
   const [selectedGuard, setSelectedGuard] = useState(guardSeries[0]?.id ?? '')
   const guard = guardSeries.find((g) => g.id === selectedGuard) ?? guardSeries[0]
 
-  const incidentsAvoided = arcs.length
-  const projectedSaved = Math.round(incidentsAvoided * AVG_CLAIM_COST * CLAIM_PROBABILITY_REDUCTION)
-  const quarterArcs = arcs.length // window ≈ one quarter of data
+  const correctionsVerified = arcs.length
+  const avgImprovement = arcs.length > 0
+    ? arcs.reduce((sum, a) => sum + (a.after - a.before), 0) / arcs.length
+    : 0
+
+  // Dollars are shown ONLY from facility-supplied inputs. No default, ever.
+  const projectedSaved = liabilityModel
+    ? Math.round(correctionsVerified * liabilityModel.avg_claim_cost * liabilityModel.claim_probability_reduction)
+    : null
+  // Annualise from the real observed window rather than assuming a quarter.
+  const annualized = projectedSaved !== null && windowDays > 0
+    ? Math.round(projectedSaved * (365 / windowDays))
+    : null
+
   const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 
   return (
@@ -208,14 +355,15 @@ export function AnalyticsClient({
           </div>
         </section>
 
-        {/* ── Remediation impact ── */}
+        {/* ── Recovery impact ── */}
         <section className="bg-white border border-gray-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">Remediation Impact</h2>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">Recovery Impact</h2>
           <p className="text-xs text-gray-400 mb-2">
-            Score on the failed audit vs. the re-audit after remediation.
+            Score on the failed audit vs. the next passing audit of the same type. Derived from
+            audit history, not from verified remediation tasks.
           </p>
           {arcs.length === 0 ? (
-            <p className="text-sm text-gray-400 py-8 text-center">No completed remediation arcs yet.</p>
+            <p className="text-sm text-gray-400 py-8 text-center">No completed recovery arcs yet.</p>
           ) : (
             <div>{arcs.slice(0, 5).map((a, i) => <ArcRow key={i} arc={a} />)}</div>
           )}
@@ -244,35 +392,48 @@ export function AnalyticsClient({
           </span>
         </div>
         <p className="text-xs text-gray-500 mb-5 max-w-2xl">
-          Modeled from this facility&apos;s completed fail → remediate → pass arcs. Figures use
-          illustrative actuarial inputs (avg. defended aquatic claim {fmt(AVG_CLAIM_COST)}, {Math.round(CLAIM_PROBABILITY_REDUCTION * 100)}%
-          claim-probability reduction per corrected deficiency) and become facility-specific once
-          incident reporting and national claim-average lookup are integrated.
+          Counted from this facility&apos;s own recovery arcs — a documented fail on a
+          liability-critical criterion followed by a verified pass on the same criterion, over the
+          last {windowDays} days.
+          {liabilityModel
+            ? ' Dollar figures apply the actuarial inputs your facility entered below.'
+            : ' Dollar figures require actuarial inputs your facility can stand behind — see below.'}
         </p>
+
         <div className="grid grid-cols-4 gap-4">
           <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-3xl font-bold text-gray-900">{incidentsAvoided}</p>
+            <p className="text-3xl font-bold text-gray-900">{correctionsVerified}</p>
             <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Deficiencies corrected<br />&amp; verified (window)</p>
           </div>
           <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-3xl font-bold" style={{ color: AQUA }}>{fmt(projectedSaved)}</p>
-            <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Projected liability<br />avoided (quarter)</p>
+            <p className="text-3xl font-bold" style={{ color: AQUA }}>+{avgImprovement.toFixed(1)}</p>
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Avg. score gain<br />per correction</p>
           </div>
           <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-3xl font-bold" style={{ color: AQUA }}>{fmt(projectedSaved * 4)}</p>
+            {projectedSaved !== null ? (
+              <p className="text-3xl font-bold" style={{ color: AQUA }}>{fmt(projectedSaved)}</p>
+            ) : (
+              <p className="text-lg font-semibold text-gray-300">Not configured</p>
+            )}
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Projected liability<br />avoided ({windowDays}d)</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            {annualized !== null ? (
+              <p className="text-3xl font-bold" style={{ color: AQUA }}>{fmt(annualized)}</p>
+            ) : (
+              <p className="text-lg font-semibold text-gray-300">Not configured</p>
+            )}
             <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Annualized<br />run-rate</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-3xl font-bold text-gray-900">{quarterArcs}</p>
-            <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Potential incidents<br />averted (modeled)</p>
-          </div>
         </div>
+
+        <LiabilityModelConfig model={liabilityModel} canConfigure={canConfigure} />
         <div className="flex items-start gap-2 mt-4 text-[10px] text-gray-400">
           <ShieldCheck className="w-3.5 h-3.5 mt-0.5 shrink-0" />
           <p>
-            Each corrected deficiency is a documented fail on a liability-critical criterion that was
-            remediated and re-verified through the PoolControl workflow — the audit trail behind every
-            figure above is exportable from the lifeguard&apos;s liability report.
+            Each corrected deficiency is a documented fail on a liability-critical criterion followed
+            by a passing re-audit of the same criterion. The audit trail behind every figure above is
+            exportable from the lifeguard&apos;s liability report.
           </p>
         </div>
       </section>

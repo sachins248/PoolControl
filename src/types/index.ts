@@ -49,6 +49,23 @@ export interface FacilityConfig {
   audit_cadence: Record<AuditTypeName, number> // days between required audits
   zones: string[]
   shift_types?: ShiftType[]
+  liability_model?: LiabilityModel
+}
+
+/**
+ * Facility-supplied actuarial inputs for the liability projection.
+ * Absent by default and never defaulted to a made-up number — the panel
+ * shows dollars only once a facility enters figures it can stand behind.
+ */
+export interface LiabilityModel {
+  /** Average cost of a defended aquatic claim, in USD. */
+  avg_claim_cost: number
+  /** Claim-probability reduction per corrected deficiency, 0–1. */
+  claim_probability_reduction: number
+  /** Where the facility got these numbers (carrier, broker, internal history). */
+  source?: string
+  updated_at: string
+  updated_by_name?: string
 }
 
 export interface ShiftType {
