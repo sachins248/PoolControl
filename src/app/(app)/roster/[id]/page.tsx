@@ -297,7 +297,7 @@ export default async function RosterMemberPage({ params }: { params: { id: strin
                   <tr key={audit.id} className={`border-b border-gray-50 last:border-0 ${i % 2 === 0 ? '' : 'bg-gray-50/40'}`}>
                     <td className="px-5 py-3 font-medium text-gray-900">{AUDIT_DISPLAY[audit.audit_type_name] ?? audit.audit_type_name}</td>
                     <td className="px-5 py-3 text-gray-500">{audit.zone ?? '—'}</td>
-                    <td className="px-5 py-3 text-center text-gray-700">{audit.score !== null ? `${Math.round(audit.score * 100)}%` : '—'}</td>
+                    <td className="px-5 py-3 text-center text-gray-700">{audit.score !== null ? `${Math.round((audit.score / 5) * 100)}%` : '—'}</td>
                     <td className="px-5 py-3 text-center">
                       {audit.passed === true ? (
                         <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-medium"><CheckCircle className="w-3.5 h-3.5" /> Pass</span>

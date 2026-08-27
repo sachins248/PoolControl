@@ -38,7 +38,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
 
   const [{ data: member }, { data: facility }] = await Promise.all([
     supabase.from('user_profiles').select('*').eq('id', params.id).eq('facility_id', profile.facility_id).single(),
-    supabase.from('facilities').select('name').eq('id', profile.facility_id).single(),
+    supabase.from('facilities').select('name, timezone').eq('id', profile.facility_id).single(),
   ])
 
   if (!member) notFound()
@@ -105,8 +105,31 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
   const openRem = allRemediations.filter((r) => ['assigned', 'acknowledged', 'in_deck'].includes(r.status))
   const closedRem = allRemediations.filter((r) => ['verified', 'escalated'].includes(r.status))
   const now = new Date()
-  const generatedAt = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+
+  // Render every date in the facility's own timezone. The server runs UTC, so
+  // without this an 8pm Central event prints as the following day in a document
+  // that calls itself an official record.
+  const timeZone = facility?.timezone ?? 'America/Chicago'
+  const fmtDate = (d: string | Date) =>
+    new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone })
+  const fmtDateLong = (d: string | Date) =>
+    new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone })
+
+  const generatedAt = now.toLocaleString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone,
+  })
   const fileName = `${member.name.replace(/\s+/g, '_')}_Liability_Report_${now.toISOString().slice(0, 10)}.pdf`
+
+  // Section numbers are derived from which sections actually render, so adding
+  // or removing one can't silently misnumber the rest of an official document.
+  const SECTIONS = [
+    'summary',
+    ...(topFailures.length > 0 ? ['failures'] : []),
+    'certifications', 'remediation', 'audits', 'rescues', 'incidents', 'advisements',
+  ] as const
+  const no = (key: (typeof SECTIONS)[number]) =>
+    String(SECTIONS.indexOf(key) + 1).padStart(2, '0')
 
   return (
     <div className="pc-report min-h-screen bg-gray-100 print:bg-white">
@@ -135,7 +158,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
                 <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
                   {member.employee_id && <span>ID: {member.employee_id}</span>}
                   {member.hire_date && (
-                    <span>Hired: {new Date(member.hire_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                    <span>Hired: {fmtDateLong(member.hire_date)}</span>
                   )}
                 </div>
               </div>
@@ -167,7 +190,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
 
             {/* ── Section 1: Performance Summary ── */}
             <section>
-              <SectionHeader number="01" title="Performance Summary" />
+              <SectionHeader number={no('summary')} title="Performance Summary" />
               <div className="grid grid-cols-4 gap-4 mb-6">
                 {[
                   { label: 'Total Audits', value: totalAudits, color: 'text-gray-900' },
@@ -202,7 +225,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
             {/* ── Section 2: Recurring Failures ── */}
             {topFailures.length > 0 && (
               <section>
-                <SectionHeader number="02" title="Recurring Failure Criteria" />
+                <SectionHeader number={no('failures')} title="Recurring Failure Criteria" />
                 <p className="text-xs text-gray-400 mb-4">Criteria this lifeguard has failed across all audits, ranked by frequency. Patterns here indicate systemic skill deficiencies.</p>
                 <ProTable
                   headers={['Criterion', 'Times Failed', 'Risk Indicator']}
@@ -220,7 +243,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
 
             {/* ── Section 3: Certifications ── */}
             <section>
-              <SectionHeader number={topFailures.length > 0 ? '03' : '02'} title="Certification Status" />
+              <SectionHeader number={no('certifications')} title="Certification Status" />
               {allCerts.length === 0 ? (
                 <EmptyState message="No certifications on record." />
               ) : (
@@ -231,8 +254,8 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
                     return [
                       <span key="body" className="font-medium text-gray-900">{CERT_DISPLAY[cert.body] ?? cert.body}</span>,
                       <span key="id" className="font-mono text-xs text-gray-600">PC-{cert.id.slice(0, 8).toUpperCase()}</span>,
-                      new Date(cert.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                      new Date(cert.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                      fmtDate(cert.issued_at),
+                      fmtDate(cert.expiry),
                       expired
                         ? <span key="status" className="inline-flex items-center gap-1 text-red-500 text-xs font-bold"><AlertTriangle className="w-3 h-3" /> EXPIRED</span>
                         : <span key="status" className="inline-flex items-center gap-1 text-emerald-600 text-xs font-semibold"><CheckCircle className="w-3 h-3" /> Active</span>,
@@ -246,7 +269,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
             {/* ── Section 4: Remediation History ── */}
             <section>
               <SectionHeader
-                number={topFailures.length > 0 ? '04' : '03'}
+                number={no('remediation')}
                 title="Remediation & Follow-Up History"
                 badge={`${allRemediations.length} total · ${openRem.length} open · ${closedRem.length} resolved`}
               />
@@ -259,8 +282,8 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
                     const isOpen = ['assigned', 'acknowledged', 'in_deck'].includes(task.status)
                     const isOverdue = isOpen && new Date(task.deadline) < now
                     return [
-                      new Date(task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                      new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                      fmtDate(task.created_at),
+                      fmtDate(task.deadline),
                       <span key="status" className={`text-xs font-bold uppercase tracking-wide ${
                         isOverdue ? 'text-red-500' :
                         task.status === 'verified' ? 'text-emerald-600' :
@@ -279,7 +302,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
             {/* ── Section 5: Complete Audit History ── */}
             <section>
               <SectionHeader
-                number={topFailures.length > 0 ? '05' : '04'}
+                number={no('audits')}
                 title="Complete Audit History"
                 badge={`${totalAudits} audits on record`}
               />
@@ -293,11 +316,11 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
                     const failed = criteria.filter((c) => c.result === 'fail').map((c) => c.criterion_label)
                     return [
                       <span key="date" className="text-xs whitespace-nowrap">
-                        {audit.submitted_at ? new Date(audit.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                        {audit.submitted_at ? fmtDate(audit.submitted_at) : '—'}
                       </span>,
                       <span key="type" className="font-medium text-gray-900">{AUDIT_DISPLAY[audit.audit_type_name] ?? audit.audit_type_name}</span>,
                       audit.zone ?? '—',
-                      audit.score !== null ? `${Math.round(audit.score * 100)}%` : '—',
+                      audit.score !== null ? `${Math.round((audit.score / 5) * 100)}%` : '—',
                       audit.passed === true ? (
                         <span key="result" className="inline-flex items-center gap-1 text-emerald-600 text-xs font-semibold"><CheckCircle className="w-3 h-3" /> Pass</span>
                       ) : audit.passed === false ? (
@@ -316,7 +339,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
             {/* ── Sections 6–8: integration-fed records ── */}
             <section>
               <SectionHeader
-                number={topFailures.length > 0 ? '06' : '05'}
+                number={no('rescues')}
                 title="Rescue & Save Log"
               />
               <p className="text-xs text-gray-400 mb-3">
@@ -327,7 +350,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
 
             <section>
               <SectionHeader
-                number={topFailures.length > 0 ? '07' : '06'}
+                number={no('incidents')}
                 title="Incident & Claim History"
               />
               <p className="text-xs text-gray-400 mb-3">
@@ -338,7 +361,7 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
 
             <section>
               <SectionHeader
-                number={topFailures.length > 0 ? '08' : '07'}
+                number={no('advisements')}
                 title="Medical Restrictions & Official Advisements"
               />
               <p className="text-xs text-gray-400 mb-3">

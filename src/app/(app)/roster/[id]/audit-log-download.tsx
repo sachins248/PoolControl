@@ -25,7 +25,7 @@ export function AuditLogDownload({ memberName, audits }: AuditLogDownloadProps) 
       a.submitted_at ? new Date(a.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
       AUDIT_DISPLAY[a.audit_type_name] ?? a.audit_type_name,
       a.zone ?? '',
-      a.score !== null ? String(Math.round(a.score * 100)) : '',
+      a.score !== null ? String(Math.round((a.score / 5) * 100)) : '',
       a.passed === true ? 'Pass' : a.passed === false ? 'Fail' : 'Pending',
       a.id,
     ])

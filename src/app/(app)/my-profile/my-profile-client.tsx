@@ -126,7 +126,7 @@ export function MyProfileClient({ profile, audits, remediations, certifications,
                     </td>
                     <td className="px-5 py-3 text-gray-500">{audit.zone ?? '—'}</td>
                     <td className="px-5 py-3 text-gray-700">
-                      {audit.score !== null ? `${Math.round(audit.score * 100)}%` : '—'}
+                      {audit.score !== null ? `${Math.round((audit.score / 5) * 100)}%` : '—'}
                     </td>
                     <td className="px-5 py-3">
                       {audit.passed === true ? (
