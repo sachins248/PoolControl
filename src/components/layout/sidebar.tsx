@@ -16,6 +16,8 @@ import {
   GraduationCap,
   CreditCard,
   LineChart,
+  FileWarning,
+  Droplets,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -37,6 +39,8 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { href: '/roster', label: 'Roster', icon: Users, roles: ['supervisor', 'manager', 'director'] },
   { href: '/audits/new', label: 'New Audit', icon: Plus, accent: true, roles: ['supervisor', 'manager', 'director'] },
   { href: '/remediation', label: 'Remediation', icon: AlertTriangle, roles: ['supervisor', 'manager', 'director'] },
+  { href: '/incidents', label: 'Incidents', icon: FileWarning, roles: ['supervisor', 'manager', 'director'] },
+  { href: '/chemistry', label: 'Water Chemistry', icon: Droplets, roles: ['lifeguard', 'supervisor', 'manager', 'director'] },
   { href: '/team', label: 'Team Analysis', icon: BarChart3, roles: ['supervisor', 'manager', 'director'] },
   { href: '/analytics', label: 'Analytics', icon: LineChart, roles: ['manager', 'director'] },
   { href: '/training', label: 'Training Plans', icon: GraduationCap, roles: ['supervisor', 'manager', 'director'] },

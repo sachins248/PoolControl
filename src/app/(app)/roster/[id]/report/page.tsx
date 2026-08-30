@@ -4,7 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle, XCircle, AlertTriangle, ShieldCheck } from 'lucide-react'
 import { ReportActions } from './print-button'
-import type { Audit, RemediationTask, Certification, AuditCriterionResult } from '@/types'
+import type { Audit, RemediationTask, Certification, AuditCriterionResult, Incident, StaffAdvisement } from '@/types'
 
 function computeLPR(audits: Audit[]): number {
   const completed = audits.filter((a) => a.passed !== null)
@@ -21,6 +21,22 @@ const AUDIT_DISPLAY: Record<string, string> = {
 const CERT_DISPLAY: Record<string, string> = {
   ellis: 'Ellis & Associates', red_cross: 'American Red Cross',
   starguard: 'StarGuard Elite', ymca: 'YMCA', jeff_ellis: 'Jeff Ellis Management',
+}
+
+const RESPONDER_LABEL: Record<string, string> = {
+  primary_rescuer: 'Primary rescuer', assist: 'Assisted', first_aid: 'Gave first aid',
+  supervisor: 'Supervisor on scene', witness: 'Witness',
+}
+
+const INCIDENT_LABEL: Record<string, string> = {
+  save: 'Save / rescue', assist: 'Assist', first_aid: 'First aid',
+  medical_emergency: 'Medical emergency', guest_injury: 'Guest injury', other: 'Other',
+}
+
+const ADVISEMENT_LABEL: Record<string, string> = {
+  medical_restriction: 'Medical restriction', duty_restriction: 'Duty restriction',
+  written_advisement: 'Written advisement', accommodation: 'Accommodation',
+  return_to_duty: 'Return to duty',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -62,6 +78,34 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
       .eq('user_id', params.id)
       .order('expiry', { ascending: false }),
   ])
+
+  // Incidents this guard responded to, and any duty advisements on file.
+  const [{ data: responderRows }, { data: advisements }] = await Promise.all([
+    supabase
+      .from('incident_responders')
+      .select('role, incidents!incident_responders_incident_id_fkey(*)')
+      .eq('user_id', params.id),
+    supabase
+      .from('staff_advisements')
+      .select('*')
+      .eq('user_id', params.id)
+      .order('effective_from', { ascending: false }),
+  ])
+
+  const involvement = (responderRows ?? [])
+    .map((r) => ({ role: r.role as string, incident: r.incidents as unknown as Incident | null }))
+    .filter((r): r is { role: string; incident: Incident } =>
+      Boolean(r.incident) && r.incident!.status !== 'draft')
+    .sort((a, b) => +new Date(b.incident.occurred_at) - +new Date(a.incident.occurred_at))
+
+  // Saves and assists read as a credential; everything else is incident history.
+  const rescues = involvement.filter((r) => ['save', 'assist'].includes(r.incident.kind))
+  const otherIncidents = involvement.filter((r) => !['save', 'assist'].includes(r.incident.kind))
+  const allAdvisements = (advisements ?? []) as StaffAdvisement[]
+
+  const { data: waterBodies } = await supabase
+    .from('water_bodies').select('id, name').eq('facility_id', profile.facility_id)
+  const waterBodyName = new Map((waterBodies ?? []).map((b) => [b.id as string, b.name as string]))
 
   const auditIds = (audits ?? []).map((a) => a.id)
   const { data: criteriaResults } = auditIds.length > 0
@@ -345,7 +389,22 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
               <p className="text-xs text-gray-400 mb-3">
                 Documented in-water rescues, dry-land saves, and assists performed by this lifeguard.
               </p>
-              <EmptyState message="No records on file. This section is populated automatically once incident-report integration is enabled for this facility." />
+              {rescues.length === 0 ? (
+                <EmptyState message="No rescues or assists on record for this lifeguard." />
+              ) : (
+                <ProTable
+                  headers={['Date', 'Type', 'Location', 'Role', 'EMS', 'Outcome']}
+                  alignments={['left', 'left', 'left', 'left', 'center', 'left']}
+                  rows={rescues.map(({ role, incident }) => [
+                    <span key="d" className="whitespace-nowrap">{fmtDate(incident.occurred_at)}</span>,
+                    <span key="t" className="font-medium text-gray-900">{INCIDENT_LABEL[incident.kind] ?? incident.kind}</span>,
+                    incident.water_body_id ? (waterBodyName.get(incident.water_body_id) ?? '—') : '—',
+                    RESPONDER_LABEL[role] ?? role,
+                    incident.ems_called ? 'Yes' : '—',
+                    incident.outcome ?? '—',
+                  ])}
+                />
+              )}
             </section>
 
             <section>
@@ -356,7 +415,22 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
               <p className="text-xs text-gray-400 mb-3">
                 Emergency medical situations, claims, and litigation events this lifeguard has been involved in, cross-referenced with audit and remediation records at the time of each event.
               </p>
-              <EmptyState message="No records on file. This section is populated automatically once incident-report integration is enabled for this facility." />
+              {otherIncidents.length === 0 ? (
+                <EmptyState message="No incidents on record for this lifeguard." />
+              ) : (
+                <ProTable
+                  headers={['Date', 'Type', 'Severity', 'Location', 'Role', 'Status']}
+                  alignments={['left', 'left', 'center', 'left', 'left', 'center']}
+                  rows={otherIncidents.map(({ role, incident }) => [
+                    <span key="d" className="whitespace-nowrap">{fmtDate(incident.occurred_at)}</span>,
+                    <span key="t" className="font-medium text-gray-900">{INCIDENT_LABEL[incident.kind] ?? incident.kind}</span>,
+                    <span key="s" className={`capitalize ${incident.severity === 'severe' ? 'text-red-600 font-semibold' : ''}`}>{incident.severity}</span>,
+                    incident.water_body_id ? (waterBodyName.get(incident.water_body_id) ?? '—') : '—',
+                    RESPONDER_LABEL[role] ?? role,
+                    <span key="st" className="capitalize">{incident.status.replace('_', ' ')}</span>,
+                  ])}
+                />
+              )}
             </section>
 
             <section>
@@ -367,7 +441,21 @@ export default async function LifeguardReportPage({ params }: { params: { id: st
               <p className="text-xs text-gray-400 mb-3">
                 Physician-recognized restrictions and official advisements affecting duty assignment.
               </p>
-              <EmptyState message="No restrictions or advisements on record." />
+              {allAdvisements.length === 0 ? (
+                <EmptyState message="No restrictions or advisements on record." />
+              ) : (
+                <ProTable
+                  headers={['Effective', 'Until', 'Type', 'Restriction', 'Issued by']}
+                  alignments={['left', 'left', 'left', 'left', 'left']}
+                  rows={allAdvisements.map((a) => [
+                    <span key="f" className="whitespace-nowrap">{fmtDate(a.effective_from)}</span>,
+                    a.effective_to ? fmtDate(a.effective_to) : 'Open-ended',
+                    ADVISEMENT_LABEL[a.kind] ?? a.kind,
+                    <span key="r" className="text-gray-900">{a.restriction}</span>,
+                    a.issued_by ?? '—',
+                  ])}
+                />
+              )}
             </section>
 
             {/* ── Liability Statement ── */}

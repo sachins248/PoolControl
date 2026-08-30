@@ -6,8 +6,9 @@ import { ArrowLeft, Plus, CheckCircle, XCircle, Clock, FileText, Zap } from 'luc
 import { LifeguardAvatar } from '@/components/shared/lifeguard-avatar'
 import { AuditLogDownload } from './audit-log-download'
 import { CadenceEditor } from './cadence-editor'
+import { AdvisementsPanel } from './advisements-panel'
 import { getEffectiveCadence } from '@/lib/schedule'
-import type { Audit, AuditTypeName, RemediationTask } from '@/types'
+import type { Audit, AuditTypeName, RemediationTask, StaffAdvisement } from '@/types'
 
 const CORE_TYPES: AuditTypeName[] = ['scanning', 'vat', 'cpr_skills', 'dispatch']
 
@@ -44,7 +45,7 @@ export default async function RosterMemberPage({ params }: { params: { id: strin
 
   if (!member) notFound()
 
-  const [{ data: audits }, { data: remediations }, { data: facility }] = await Promise.all([
+  const [{ data: audits }, { data: remediations }, { data: facility }, { data: advisementRows }] = await Promise.all([
     supabase
       .from('audits')
       .select('*')
@@ -62,8 +63,14 @@ export default async function RosterMemberPage({ params }: { params: { id: strin
       .select('config')
       .eq('id', profile.facility_id)
       .single(),
+    supabase
+      .from('staff_advisements')
+      .select('*')
+      .eq('user_id', params.id)
+      .order('effective_from', { ascending: false }),
   ])
 
+  const advisements = (advisementRows ?? []) as StaffAdvisement[]
   const facilityCadence = (facility?.config?.audit_cadence ?? {}) as Record<AuditTypeName, number>
 
   // Per-type performance + schedule (audits are already newest-first)
@@ -198,6 +205,11 @@ export default async function RosterMemberPage({ params }: { params: { id: strin
               />
             )}
           </div>
+          {isManager(profile.role) && (
+            <div className="mb-4">
+              <AdvisementsPanel userId={params.id} advisements={advisements} />
+            </div>
+          )}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             {typeCards.map((c, i) => {
               const overdue = c.dueInDays !== null ? c.dueInDays < 0 : c.count === 0

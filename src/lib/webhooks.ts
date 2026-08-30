@@ -85,33 +85,53 @@ function buildTeamsPayload(p: AuditFailurePayload): object {
 }
 
 
-export async function sendAuditFailureWebhooks(
-  webhookUrls: { slack?: string | null; teams?: string | null },
-  payload: AuditFailurePayload,
+export interface WebhookUrls {
+  slack?: string | null
+  teams?: string | null
+}
+
+/**
+ * Single transport for every alert type. Each event only has to supply its two
+ * payload builders; previously each one re-implemented this same fetch loop.
+ * Delivery is best-effort by design — a webhook outage must never block the
+ * write that triggered it.
+ */
+async function dispatch(
+  urls: WebhookUrls,
+  buildSlack: () => object,
+  buildTeams: () => object,
 ): Promise<void> {
   const sends: Promise<void>[] = []
-
-  if (webhookUrls.slack) {
+  if (urls.slack) {
     sends.push(
-      fetch(webhookUrls.slack, {
+      fetch(urls.slack, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildSlackPayload(payload)),
-      }).then(() => {}).catch(() => {}),
+        body: JSON.stringify(buildSlack()),
+      })
+        .then(() => {})
+        .catch((err) => console.warn('[webhooks] slack delivery failed:', err)),
     )
   }
-
-  if (webhookUrls.teams) {
+  if (urls.teams) {
     sends.push(
-      fetch(webhookUrls.teams, {
+      fetch(urls.teams, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildTeamsPayload(payload)),
-      }).then(() => {}).catch(() => {}),
+        body: JSON.stringify(buildTeams()),
+      })
+        .then(() => {})
+        .catch((err) => console.warn('[webhooks] teams delivery failed:', err)),
     )
   }
-
   await Promise.allSettled(sends)
+}
+
+export async function sendAuditFailureWebhooks(
+  webhookUrls: WebhookUrls,
+  payload: AuditFailurePayload,
+): Promise<void> {
+  await dispatch(webhookUrls, () => buildSlackPayload(payload), () => buildTeamsPayload(payload))
 }
 
 interface SchedulePublishedPayload {
@@ -176,30 +196,147 @@ function buildScheduleTeamsPayload(p: SchedulePublishedPayload): object {
 }
 
 export async function sendSchedulePublishedWebhooks(
-  webhookUrls: { slack?: string | null; teams?: string | null },
+  webhookUrls: WebhookUrls,
   payload: SchedulePublishedPayload,
 ): Promise<void> {
-  const sends: Promise<void>[] = []
+  await dispatch(webhookUrls, () => buildScheduleSlackPayload(payload), () => buildScheduleTeamsPayload(payload))
+}
 
-  if (webhookUrls.slack) {
-    sends.push(
-      fetch(webhookUrls.slack, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildScheduleSlackPayload(payload)),
-      }).then(() => {}).catch(() => {}),
-    )
-  }
+// ─── Chemistry out-of-range / closure ────────────────────────────────────────
 
-  if (webhookUrls.teams) {
-    sends.push(
-      fetch(webhookUrls.teams, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildScheduleTeamsPayload(payload)),
-      }).then(() => {}).catch(() => {}),
-    )
-  }
+export interface ChemistryAlertPayload {
+  facilityName: string
+  waterBodyName: string
+  status: 'out_of_range' | 'closure_required' | 'cleared'
+  /** e.g. ["pH 8.2 above 7.8", "Free chlorine 0.6 below 1.0"] */
+  breachLines: string[]
+  testedBy: string
+  testedAt: string
+}
 
-  await Promise.allSettled(sends)
+const CHEM_TITLE: Record<ChemistryAlertPayload['status'], string> = {
+  closure_required: '🚨 CLOSURE REQUIRED — water chemistry',
+  out_of_range: '⚠️ Water chemistry out of range',
+  cleared: '✅ Water chemistry back in range',
+}
+
+export async function sendChemistryWebhooks(
+  webhookUrls: WebhookUrls,
+  p: ChemistryAlertPayload,
+): Promise<void> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const title = CHEM_TITLE[p.status]
+  const detail = p.breachLines.length > 0 ? p.breachLines.map((l) => `• ${l}`).join('\n') : 'All parameters within range'
+
+  await dispatch(
+    webhookUrls,
+    () => ({
+      blocks: [
+        { type: 'header', text: { type: 'plain_text', text: title } },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*${p.waterBodyName}* · tested by ${p.testedBy} at ${p.testedAt}\n_${p.facilityName}_`,
+          },
+        },
+        { type: 'section', text: { type: 'mrkdwn', text: detail } },
+        {
+          type: 'actions',
+          elements: [{
+            type: 'button',
+            text: { type: 'plain_text', text: 'Open chemistry log' },
+            url: `${appUrl}/chemistry`,
+            ...(p.status === 'closure_required' ? { style: 'danger' } : {}),
+          }],
+        },
+      ],
+    }),
+    () => ({
+      '@type': 'MessageCard',
+      '@context': 'http://schema.org/extensions',
+      summary: title,
+      themeColor: p.status === 'closure_required' ? 'FF4444' : p.status === 'cleared' ? '45E0CE' : 'FFB020',
+      title,
+      sections: [{
+        facts: [
+          { name: 'Facility', value: p.facilityName },
+          { name: 'Water body', value: p.waterBodyName },
+          { name: 'Tested by', value: p.testedBy },
+          { name: 'Detail', value: p.breachLines.join('; ') || 'In range' },
+        ],
+      }],
+      potentialAction: [{
+        '@type': 'OpenUri', name: 'Open chemistry log',
+        targets: [{ os: 'default', uri: `${appUrl}/chemistry` }],
+      }],
+    }),
+  )
+}
+
+// ─── Incident filed ──────────────────────────────────────────────────────────
+
+export interface IncidentAlertPayload {
+  facilityName: string
+  kindLabel: string
+  severity: string
+  waterBodyName: string
+  reportedBy: string
+  occurredAt: string
+  emsCalled: boolean
+  incidentId: string
+}
+
+export async function sendIncidentWebhooks(
+  webhookUrls: WebhookUrls,
+  p: IncidentAlertPayload,
+): Promise<void> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const title = `${p.severity === 'severe' ? '🚨' : '📋'} Incident filed — ${p.kindLabel}`
+
+  await dispatch(
+    webhookUrls,
+    () => ({
+      blocks: [
+        { type: 'header', text: { type: 'plain_text', text: title } },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*${p.waterBodyName}* · ${p.occurredAt}\nSeverity: *${p.severity}*${p.emsCalled ? ' · *EMS called*' : ''}\nFiled by ${p.reportedBy} · _${p.facilityName}_`,
+          },
+        },
+        {
+          type: 'actions',
+          elements: [{
+            type: 'button',
+            text: { type: 'plain_text', text: 'View incident' },
+            url: `${appUrl}/incidents/${p.incidentId}`,
+            ...(p.severity === 'severe' ? { style: 'danger' } : {}),
+          }],
+        },
+      ],
+    }),
+    () => ({
+      '@type': 'MessageCard',
+      '@context': 'http://schema.org/extensions',
+      summary: title,
+      themeColor: p.severity === 'severe' ? 'FF4444' : 'FFB020',
+      title,
+      sections: [{
+        facts: [
+          { name: 'Facility', value: p.facilityName },
+          { name: 'Type', value: p.kindLabel },
+          { name: 'Severity', value: p.severity },
+          { name: 'Location', value: p.waterBodyName },
+          { name: 'EMS called', value: p.emsCalled ? 'Yes' : 'No' },
+          { name: 'Filed by', value: p.reportedBy },
+        ],
+      }],
+      potentialAction: [{
+        '@type': 'OpenUri', name: 'View incident',
+        targets: [{ os: 'default', uri: `${appUrl}/incidents/${p.incidentId}` }],
+      }],
+    }),
+  )
 }

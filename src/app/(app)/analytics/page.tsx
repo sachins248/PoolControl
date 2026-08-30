@@ -39,7 +39,7 @@ export default async function AnalyticsPage() {
 
   const supabase = createClient()
 
-  const [{ data: audits }, { data: guards }, { data: facility }] = await Promise.all([
+  const [{ data: audits }, { data: guards }, { data: facility }, { data: incidentRows }] = await Promise.all([
     supabase
       .from('audits')
       .select('lifeguard_id, audit_type_name, score, passed, submitted_at')
@@ -59,9 +59,25 @@ export default async function AnalyticsPage() {
       .select('config')
       .eq('id', profile.facility_id)
       .single(),
+    supabase
+      .from('incidents')
+      .select('kind, severity, occurred_at, ems_called')
+      .eq('facility_id', profile.facility_id)
+      .neq('status', 'draft')
+      .order('occurred_at', { ascending: false }),
   ])
 
   const liabilityModel = (facility?.config?.liability_model ?? null) as LiabilityModel | null
+
+  // Real incident counts, replacing the recovery-arc count that stood in for
+  // them while there was no incident data at all.
+  const incidents = incidentRows ?? []
+  const incidentStats = {
+    total: incidents.length,
+    saves: incidents.filter((i) => i.kind === 'save').length,
+    severe: incidents.filter((i) => i.severity === 'severe').length,
+    emsCalls: incidents.filter((i) => i.ems_called).length,
+  }
 
   const guardName = new Map((guards ?? []).map((g) => [g.id, g.name]))
   const rows = (audits ?? []).filter((a) => guardName.has(a.lifeguard_id))
@@ -148,6 +164,7 @@ export default async function AnalyticsPage() {
       windowDays={Math.round(oldest)}
       totalAudits={rows.length}
       liabilityModel={liabilityModel}
+      incidentStats={incidentStats}
       canConfigure={isManager(profile.role)}
     />
   )

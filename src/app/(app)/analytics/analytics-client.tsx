@@ -27,6 +27,7 @@ interface Props {
   /** Facility-supplied actuarial inputs. Null until someone enters them. */
   liabilityModel: LiabilityModel | null
   canConfigure: boolean
+  incidentStats: { total: number; saves: number; severe: number; emsCalls: number }
 }
 
 /* ── Small-multiple trend line (single aqua series — no legend needed) ─────── */
@@ -285,7 +286,7 @@ const fmtUsd = (n: number) =>
 
 export function AnalyticsClient({
   trends, guardSeries, arcs, teamBefore, teamAfter, windowDays, totalAudits,
-  liabilityModel, canConfigure,
+  liabilityModel, canConfigure, incidentStats,
 }: Props) {
   const [selectedGuard, setSelectedGuard] = useState(guardSeries[0]?.id ?? '')
   const guard = guardSeries.find((g) => g.id === selectedGuard) ?? guardSeries[0]
@@ -379,6 +380,34 @@ export function AnalyticsClient({
           </div>
         </section>
       </div>
+
+      {/* ── Incidents (real, recorded) ── */}
+      <section className="bg-white border border-gray-200 rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">Incidents on Record</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Filed incident reports for this facility. Unlike the projection below, these are counts of
+          things that actually happened.
+        </p>
+        <div className="grid grid-cols-4 gap-4">
+          {[
+            { v: incidentStats.total, l: 'Total incidents' },
+            { v: incidentStats.saves, l: 'Saves & rescues' },
+            { v: incidentStats.severe, l: 'Severe' },
+            { v: incidentStats.emsCalls, l: 'EMS called' },
+          ].map((t) => (
+            <div key={t.l} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <p className="text-3xl font-bold text-gray-900">{t.v}</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">{t.l}</p>
+            </div>
+          ))}
+        </div>
+        {incidentStats.total === 0 && (
+          <p className="text-xs text-gray-400 mt-3">
+            Nothing filed yet. Incidents recorded under Incidents appear here and on each
+            responder&apos;s liability report.
+          </p>
+        )}
+      </section>
 
       {/* ── EXPERIMENTAL: liability projection ── */}
       <section className="border-2 rounded-xl p-6" style={{ borderColor: SIGNAL, background: 'rgba(255,74,26,0.04)' }}>

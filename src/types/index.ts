@@ -50,6 +50,9 @@ export interface FacilityConfig {
   zones: string[]
   shift_types?: ShiftType[]
   liability_model?: LiabilityModel
+  chem_defaults?: ChemDefaults
+  slack_webhook_url?: string | null
+  teams_webhook_url?: string | null
 }
 
 /**
@@ -105,6 +108,147 @@ export interface UserProfile {
   // computed
   initials?: string
   avatar_color?: string
+}
+
+// ─── Water bodies ─────────────────────────────────────────────────────────────
+
+export type WaterBodyKind =
+  | 'lap_pool' | 'leisure_pool' | 'wave_pool' | 'lazy_river'
+  | 'kiddie_pool' | 'spa' | 'splash_pad' | 'slide_plunge' | 'other'
+
+export interface WaterBody {
+  id: string
+  facility_id: string
+  name: string
+  kind: WaterBodyKind
+  config: { chem_thresholds?: ChemThresholds; test_interval_minutes?: number }
+  is_active: boolean
+  sort_order: number
+}
+
+// ─── Incidents ────────────────────────────────────────────────────────────────
+
+export type IncidentKind =
+  | 'save' | 'assist' | 'first_aid' | 'medical_emergency' | 'guest_injury' | 'other'
+export type IncidentSeverity = 'minor' | 'moderate' | 'severe'
+export type IncidentStatus = 'draft' | 'submitted' | 'under_review' | 'closed'
+export type ResponderRole =
+  | 'primary_rescuer' | 'assist' | 'first_aid' | 'supervisor' | 'witness'
+
+export interface Incident {
+  id: string
+  facility_id: string
+  water_body_id: string | null
+  occurred_at: string
+  kind: IncidentKind
+  severity: IncidentSeverity
+  guest_name: string | null
+  guest_age: number | null
+  narrative: string
+  actions_taken: string | null
+  ems_called: boolean
+  ems_arrival_at: string | null
+  outcome: string | null
+  witnesses: string | null
+  status: IncidentStatus
+  reported_by_id: string
+  submitted_at: string | null
+  reviewed_by_id: string | null
+  review_notes: string | null
+  corrective_action: string | null
+  closed_at: string | null
+  created_at: string
+}
+
+export interface IncidentResponder {
+  id: string
+  incident_id: string
+  user_id: string
+  role: ResponderRole
+}
+
+export interface IncidentAmendment {
+  id: string
+  incident_id: string
+  seq: number
+  body: string
+  author_id: string
+  created_at: string
+}
+
+// ─── Staff advisements ────────────────────────────────────────────────────────
+
+export type AdvisementKind =
+  | 'medical_restriction' | 'duty_restriction' | 'written_advisement'
+  | 'accommodation' | 'return_to_duty'
+
+export interface StaffAdvisement {
+  id: string
+  facility_id: string
+  user_id: string
+  kind: AdvisementKind
+  restriction: string
+  issued_by: string | null
+  effective_from: string
+  effective_to: string | null
+  recorded_by_id: string
+  created_at: string
+}
+
+// ─── Water chemistry ──────────────────────────────────────────────────────────
+
+export type ChemParam =
+  | 'free_chlorine' | 'combined_chlorine' | 'ph' | 'total_alkalinity'
+  | 'calcium_hardness' | 'cyanuric_acid' | 'water_temp_f' | 'turbidity_ntu'
+
+export type ChemReadingStatus = 'ok' | 'out_of_range' | 'closure_required'
+
+export interface ChemBound {
+  min?: number
+  max?: number
+  /** Health-code closure trigger — distinct from merely out of range. */
+  close_below?: number
+  close_above?: number
+  unit?: string
+}
+
+export type ChemThresholds = Partial<Record<ChemParam, ChemBound>>
+
+export interface ChemDefaults {
+  test_interval_minutes: number
+  thresholds: ChemThresholds
+}
+
+export interface ChemBreach {
+  param: ChemParam
+  value: number
+  bound: 'min' | 'max' | 'close_below' | 'close_above'
+  limit: number
+}
+
+export interface ChemistryReading {
+  id: string
+  facility_id: string
+  water_body_id: string
+  tested_at: string
+  tested_by_id: string
+  free_chlorine: number | null
+  combined_chlorine: number | null
+  ph: number | null
+  total_alkalinity: number | null
+  calcium_hardness: number | null
+  cyanuric_acid: number | null
+  water_temp_f: number | null
+  turbidity_ntu: number | null
+  status: ChemReadingStatus
+  breaches: ChemBreach[]
+  thresholds_snapshot: ChemThresholds
+  notes: string | null
+  corrected_at: string | null
+  corrected_by_id: string | null
+  corrective_note: string | null
+  retest_of: string | null
+  created_at: string
 }
 
 export interface Certification {
