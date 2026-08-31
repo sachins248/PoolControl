@@ -150,7 +150,7 @@ export function NewIncidentClient({
                 <select
                   value={r.userId}
                   onChange={(e) => setResponders((rs) => rs.map((x, j) => j === i ? { ...x, userId: e.target.value } : x))}
-                  className={`${input} flex-1`}
+                  className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 >
                   <option value="">Select staff…</option>
                   {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -158,7 +158,7 @@ export function NewIncidentClient({
                 <select
                   value={r.role}
                   onChange={(e) => setResponders((rs) => rs.map((x, j) => j === i ? { ...x, role: e.target.value as ResponderRole } : x))}
-                  className={`${input} w-44`}
+                  className="w-44 shrink-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 >
                   {ROLES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>

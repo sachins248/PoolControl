@@ -88,10 +88,15 @@ create table if not exists incident_amendments (
   unique (incident_id, seq)
 );
 
+-- Append-only for real users: no UPDATE rule can rewrite an addendum, and RLS
+-- grants no delete/update policy so a session-scoped client cannot touch them.
+--
+-- Deliberately NOT a `do instead nothing` DELETE rule: that silently swallows
+-- the FK cascade from incidents, which makes Postgres fail the referential
+-- integrity check and renders incidents (and their facility) undeletable.
 drop rule if exists incident_amendments_no_update on incident_amendments;
 drop rule if exists incident_amendments_no_delete on incident_amendments;
 create rule incident_amendments_no_update as on update to incident_amendments do instead nothing;
-create rule incident_amendments_no_delete as on delete to incident_amendments do instead nothing;
 
 -- ─── Immutability with a mutable allowlist ───────────────────────────────────
 create or replace function prevent_incident_modification()
@@ -132,43 +137,54 @@ create trigger incident_immutability before update on incidents
 -- Incidents carry guest PII, so lifeguards see only their own involvement —
 -- deliberately narrower than the facility-wide audits policy.
 
+-- Membership and visibility checks run as SECURITY DEFINER so they bypass RLS
+-- internally. Without this, incidents_select queries incident_responders while
+-- incident_responders_select queries incidents, and Postgres aborts every read
+-- with "infinite recursion detected in policy".
+create or replace function is_incident_responder(p_incident_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from incident_responders
+    where incident_id = p_incident_id and user_id = auth.uid()
+  )
+$$;
+
+create or replace function can_read_incident(p_incident_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from incidents i
+    where i.id = p_incident_id
+      and (
+        i.reported_by_id = auth.uid()
+        or (i.facility_id = get_my_facility_id() and is_facility_staff())
+        or is_platform_reader()
+        or exists (
+          select 1 from incident_responders r
+          where r.incident_id = i.id and r.user_id = auth.uid()
+        )
+      )
+  )
+$$;
+
 alter table incidents enable row level security;
 drop policy if exists incidents_select on incidents;
 create policy incidents_select on incidents for select using (
   is_platform_reader()
   or (facility_id = get_my_facility_id() and is_facility_staff())
   or reported_by_id = auth.uid()
-  or exists (
-    select 1 from incident_responders r
-    where r.incident_id = incidents.id and r.user_id = auth.uid()
-  )
+  or is_incident_responder(id)
 );
 
 alter table incident_responders enable row level security;
 drop policy if exists incident_responders_select on incident_responders;
 create policy incident_responders_select on incident_responders for select using (
-  user_id = auth.uid()
-  or exists (
-    select 1 from incidents i
-    where i.id = incident_responders.incident_id
-      and (is_platform_reader()
-           or (i.facility_id = get_my_facility_id() and is_facility_staff())
-           or i.reported_by_id = auth.uid())
-  )
+  user_id = auth.uid() or can_read_incident(incident_id)
 );
 
 alter table incident_amendments enable row level security;
 drop policy if exists incident_amendments_select on incident_amendments;
 create policy incident_amendments_select on incident_amendments for select using (
-  exists (
-    select 1 from incidents i
-    where i.id = incident_amendments.incident_id
-      and (is_platform_reader()
-           or (i.facility_id = get_my_facility_id() and is_facility_staff())
-           or i.reported_by_id = auth.uid()
-           or exists (select 1 from incident_responders r
-                      where r.incident_id = i.id and r.user_id = auth.uid()))
-  )
+  can_read_incident(incident_id)
 );
 
 -- Verification

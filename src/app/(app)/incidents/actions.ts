@@ -10,7 +10,7 @@ function canFile(role: string) {
   return isManager(role) || role === 'supervisor'
 }
 
-export const KIND_LABEL: Record<IncidentKind, string> = {
+const KIND_LABEL: Record<IncidentKind, string> = {
   save: 'Save / rescue',
   assist: 'Assist',
   first_aid: 'First aid',
